@@ -33,3 +33,8 @@
 
 testcppsocket
 .vscode
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+Makefile
+CMakeLists.txt

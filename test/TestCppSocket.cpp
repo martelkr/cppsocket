@@ -36,7 +36,7 @@ static void TEST1(void)
 
     char buffer[TEST_STRING.length() + 1];
     const auto ret = c.read(buffer, sizeof(buffer));
-    if (ret != TEST_STRING.length())
+    if (ret != static_cast<int>(TEST_STRING.length()))
     {
         assert(false);
     }
@@ -62,7 +62,7 @@ static void clientThread(void)
     std::cout << "Client connected" << std::endl;
 
     const auto ret = c.send(TEST_STRING.c_str(), TEST_STRING.length());
-    if (ret != TEST_STRING.length())
+    if (ret != static_cast<int>(TEST_STRING.length()))
     {
         assert(false);
     }
@@ -90,7 +90,7 @@ static void TEST2(void)
 
         char buffer[TEST_STRING.length() + 1];
         const auto ret = c.read(buffer, sizeof(buffer));
-        if (ret != TEST_STRING.length())
+        if (ret != static_cast<int>(TEST_STRING.length()))
         {
             assert(false);
         }
@@ -136,7 +136,7 @@ static void sslClientThread(void)
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     const auto ret = c.send(TEST_STRING.c_str(), TEST_STRING.length());
-    if (ret != TEST_STRING.length())
+    if (ret != static_cast<int>(TEST_STRING.length()))
     {
         assert(false);
     }

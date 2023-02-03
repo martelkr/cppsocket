@@ -1,4 +1,4 @@
-SET(CMAKE_CXX_FLAGS "-g -O3 -Wall -werror")
+SET(CMAKE_CXX_FLAGS "-g -O3 -Wall -Werror")
 
 if(NOT MSVC)
     find_package(OpenSSL)
