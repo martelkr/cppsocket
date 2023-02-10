@@ -1,4 +1,27 @@
 
+#ifdef LINUX
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#else
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#include <BaseTsd.h>
+using ssize_t = SSIZE_T;
+using size_t = SIZE_T;
+
+#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Mswsock.lib")
+#pragma comment(lib, "AdvApi32.lib")
+
+#endif
+
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -7,12 +30,7 @@
 #include <string>
 #include <cstring>
 #include <stdexcept>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <netinet/tcp.h>
+#include <mutex>
 
 #include <iostream>
 
@@ -20,6 +38,11 @@ namespace com
 {
     namespace socket
     {
+#ifdef WINDOWS
+        std::mutex gWsaMutex;
+        static bool WinsockInitialized(void);
+#endif
+
         class TCPClient
         {
         public:
@@ -30,7 +53,11 @@ namespace com
              * @param fd Previously created socket file descriptor
              * @param sslctx Previously created SSL context or default null pointer for non secure connection
              */
+#ifdef LINUX
             explicit TCPClient(const int fd, SSL_CTX* sslctx = nullptr)
+#else
+            explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr)
+#endif
                 : m_clientFd(fd)
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr) // we don't need to save this on the server side client
@@ -61,11 +88,21 @@ namespace com
              * @param port Port of the TCP server
              * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
              */
-            TCPClient(const std::string& ip, const uint16_t port, const bool ssl = false)
-                : m_clientFd(-1)
-                , m_cSSL(nullptr)
-                , m_sslctx(nullptr)
+            TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false)
+                : m_clientFd(-1), m_cSSL(nullptr), m_sslctx(nullptr) 
             {
+#ifdef WINDOWS
+                {
+                    std::lock_guard<std::mutex> lock(gWsaMutex);
+                    if (!WinsockInitialized()) 
+                    {
+                        if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
+                        {
+                            throw std::runtime_error("Could not start-up Windows sockets");
+                        }
+                    }
+                }
+#endif
                 if (ip.empty())
                 {
                     throw std::runtime_error("IP address is empty! Cannot connect to empty server!");
@@ -80,7 +117,11 @@ namespace com
                 }
 
                 m_clientFd = ::socket(AF_INET, SOCK_STREAM, 0);
+#ifdef LINUX
                 if (m_clientFd < 0)
+#else
+                if (m_clientFd == INVALID_SOCKET)
+#endif
                 {
                     throw std::runtime_error("Failed to create Socket FD");
                 }
@@ -97,7 +138,12 @@ namespace com
                     throw std::runtime_error("Failed to convert IP address!");
                 }
 
-                if (::connect(m_clientFd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0)
+                auto ret = ::connect(m_clientFd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+#ifdef LINUX
+                if (ret < 0)
+#else
+                if (ret == SOCKET_ERROR)
+#endif
                 {
                     throw std::runtime_error("Failed to connect to server!");
                 }
@@ -120,8 +166,13 @@ namespace com
              */
             ~TCPClient(void)
             {
+#ifdef LINUX
                 static_cast<void>(::shutdown(m_clientFd, SHUT_RDWR));
                 static_cast<void>(::close(m_clientFd));
+#else
+                static_cast<void>(::shutdown(m_clientFd, SD_BOTH));
+                static_cast<void>(::closesocket(m_clientFd));
+#endif
 
                 if (m_cSSL)
                 {
@@ -150,7 +201,11 @@ namespace com
                 }
                 else
                 {
+#ifdef LINUX
                     return ::read(m_clientFd, buffer, len);
+#else
+                    return ::recv(m_clientFd, reinterpret_cast<char*>(buffer), len, 0);
+#endif
                 }
             }
 
@@ -170,14 +225,23 @@ namespace com
                 }
                 else
                 {
+#ifdef LINUX
                     return ::send(m_clientFd, buffer, len, 0);
+#else
+                    return ::send(m_clientFd, reinterpret_cast<const char*>(buffer), len, 0);
+#endif
                 }
             }
 
         protected:
 
             /// @brief socket file descriptor
+#ifdef LINUX
             int m_clientFd;
+#else
+            SOCKET m_clientFd;
+            WSADATA m_wsaData;
+#endif
             /// @brief SSL/TLS instance
             SSL* m_cSSL;
             /// @brief SSL/TLS context
@@ -190,7 +254,11 @@ namespace com
             void init(void) const
             {
                 int flag = 1;
+#ifdef LINUX
                 if (::setsockopt(m_clientFd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
+#else
+                if (::setsockopt(m_clientFd, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
+#endif
                 {
                     throw std::runtime_error("Failed to setup socket!");
                 }
@@ -217,12 +285,28 @@ namespace com
              * @param certFile Certifaction file for provided key
              */
             TCPServer(const std::string& keyFile, const std::string& certFile)
+#ifdef LINUX
                 : m_socketFd(-1)
+#else
+                : m_socketFd(INVALID_SOCKET)
+#endif
                 , m_serverAddr()
                 , m_sslctx(nullptr)
                 , m_keyFile(keyFile)
                 , m_certFile(certFile)
             {
+#ifdef WINDOWS
+                {
+                    std::lock_guard<std::mutex> lock(gWsaMutex);
+                    if (!WinsockInitialized()) 
+                    {
+                        if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
+                        {
+                            throw std::runtime_error("Could not start-up Windows sockets");
+                        }
+                    }
+                }
+#endif
                 std::memset(&m_serverAddr, 0, sizeof(m_serverAddr));
 
                 if (m_keyFile.length() > 0 && m_certFile.length() > 0)
@@ -239,7 +323,11 @@ namespace com
                 }
 
                 m_socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
+#ifdef LINUX
                 if (m_socketFd < 0)
+#else
+                if (m_socketFd == INVALID_SOCKET)
+#endif
                 {
                     throw std::runtime_error("Failed to create Socket FD");
                 }
@@ -281,8 +369,13 @@ namespace com
              */
             ~TCPServer(void)
             {
+#ifdef LINUX
                 static_cast<void>(::shutdown(m_socketFd, SHUT_RDWR));
                 static_cast<void>(::close(m_socketFd));
+#else
+                static_cast<void>(::shutdown(m_socketFd, SD_BOTH));
+                static_cast<void>(::closesocket(m_socketFd));
+#endif
 
                 if (m_sslctx)
                 {
@@ -299,8 +392,12 @@ namespace com
             {
                 sockaddr_in client;
                 socklen_t clientLen = sizeof(client);
-                int fd = ::accept(m_socketFd, reinterpret_cast<sockaddr*>(&client), &clientLen);
+                auto fd = ::accept(m_socketFd, reinterpret_cast<sockaddr*>(&client), &clientLen);
+#ifdef LINUX
                 if (fd < 0)
+#else
+                if (fd == INVALID_SOCKET)
+#endif
                 {
                     throw std::runtime_error("Failed to accept client!");
                 }
@@ -350,12 +447,22 @@ namespace com
                 }
                 m_serverAddr.sin_port = ::htons(port);
 
-                if (::bind(m_socketFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr)) < 0)
+                auto ret = ::bind(m_socketFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
+#ifdef LINUX
+                if (ret < 0)
+#else
+                if (ret == SOCKET_ERROR)
+#endif
                 {
                     throw std::runtime_error("Failed to bind server!");
                 }
 
-                if (::listen(m_socketFd, backlog) != 0)
+                ret = ::listen(m_socketFd, backlog);
+#ifdef LINUX
+                if (ret != 0)
+#else
+                if (ret == SOCKET_ERROR)
+#endif
                 {
                     throw std::runtime_error("Failed to listen on server socket.");
                 }
@@ -364,7 +471,12 @@ namespace com
         protected:
 
             /// @brief TCP server socket file descriptor
+#ifdef LINUX
             int m_socketFd;
+#else
+            SOCKET m_socketFd;
+            WSADATA m_wsaData;
+#endif
             /// @brief TCP server address on which to bind
             sockaddr_in m_serverAddr;
 
@@ -375,6 +487,10 @@ namespace com
             /// @brief Certificate file for key file
             const std::string m_certFile;
 
+            TCPServer& operator=(TCPServer&) = delete;
+            TCPServer& operator=(TCPServer&&) = delete;
+            TCPServer(TCPServer&) = delete;
+
             /**
              * @brief Initialize the TCP server for IP and port reusability 
              * 
@@ -382,11 +498,29 @@ namespace com
             void init(void) const
             {
                 int opt = 1;
+#ifdef LINUX
                 if (::setsockopt(m_socketFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
+#else
+                if (::setsockopt(m_socketFd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
+#endif
                 {
                     throw std::runtime_error("Failed to setup socket!");
                 }
             }
         };
+
+#ifdef WINDOWS
+        bool WinsockInitialized(void) 
+        {
+            SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+            if (s == INVALID_SOCKET) 
+            {
+                return false;
+            }
+
+            ::closesocket(s);
+            return true;
+        }
+#endif
     }
 }
