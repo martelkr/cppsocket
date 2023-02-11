@@ -85,7 +85,7 @@ static void clientThread(void)
 }
 
 #ifdef LINUX
-static void TEST2(int argc, char *argv[]) 
+static void TEST2(void) 
 {
     pid_t p = fork();
     if (p == -1)
