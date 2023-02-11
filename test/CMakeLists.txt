@@ -1,8 +1,8 @@
-SET(CMAKE_CXX_FLAGS "-g -O3 -Wall -Werror")
-
-if(NOT MSVC)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    SET(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
     find_package(OpenSSL)
 else()
+    SET(CMAKE_CXX_FLAGS "-O3 -Wall")
     find_package(OpenSSL REQUIRED)
     include_directories("${OPENSSL_INCLUDE_DIR}")
 endif()
