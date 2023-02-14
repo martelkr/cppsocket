@@ -39,3 +39,10 @@ cmake_install.cmake
 Makefile
 CMakeLists.txt
 .vs
+*.vcxproj*
+*.sln
+test/Debug
+test/bin
+x64
+/bin
+test/testcppsocket.dir
