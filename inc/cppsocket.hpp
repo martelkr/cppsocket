@@ -83,12 +83,12 @@ namespace
             gcookie[i] = static_cast<unsigned char>(::rand());
         }
 
-        const auto length = sizeof(in_addr) + sizeof(in_port_t);
+        const auto length = sizeof(in_addr) + sizeof(uint16_t);
         sockaddr_in addr;
         static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
         unsigned char buffer[length];
 
-        ::memcpy(buffer, &addr.sin_port, sizeof(in_port_t));
+        ::memcpy(buffer, &addr.sin_port, sizeof(uint16_t));
         ::memcpy(buffer + sizeof(addr.sin_port), &addr.sin_addr, sizeof(in_addr));
 
         unsigned char result[EVP_MAX_MD_SIZE];
@@ -113,10 +113,10 @@ namespace
         sockaddr_in addr;
         static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
 
-        const auto length = sizeof(in_addr) + sizeof(in_port_t);
+        const auto length = sizeof(in_addr) + sizeof(uint16_t);
         unsigned char buffer[length];
 
-        ::memcpy(buffer, &addr.sin_port, sizeof(in_port_t));
+        ::memcpy(buffer, &addr.sin_port, sizeof(uint16_t));
         ::memcpy(buffer + sizeof(addr.sin_port), &addr.sin_addr, sizeof(in_addr));
         unsigned char result[EVP_MAX_MD_SIZE];
         unsigned int resLen = 0;
@@ -186,6 +186,9 @@ namespace com
             explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr)
 #endif
                 : m_sockFd(fd)
+#ifdef WINDOWS
+                , m_wsaData()
+#endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
             {
@@ -217,6 +220,9 @@ namespace com
              */
             TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false)
                 : m_sockFd(-1)
+#ifdef WINDOWS
+                , m_wsaData()
+#endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
             {
@@ -411,6 +417,7 @@ namespace com
                 : m_sockFd(-1)
 #else
                 : m_sockFd(INVALID_SOCKET)
+                , m_wsaData()
 #endif
                 , m_serverAddr()
                 , m_sslctx(nullptr)
@@ -628,6 +635,7 @@ namespace com
                 : m_sockFd(-1)
 #else
                 : m_sockFd(INVALID_SOCKET)
+                , m_wsaData()
 #endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
@@ -664,6 +672,7 @@ namespace com
                 : m_sockFd(-1)
 #else
                 : m_sockFd(INVALID_SOCKET)
+                , m_wsaData()
 #endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
@@ -687,6 +696,7 @@ namespace com
                 : m_sockFd(-1)
 #else
                 : m_sockFd(INVALID_SOCKET)
+                , m_wsaData()
 #endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
@@ -787,10 +797,11 @@ namespace com
                 }
                 else
                 {
+                    socklen_t socklen = sizeof(m_clientAddr);
 #ifdef LINUX
-                    return ::read(m_sockFd, buffer, len);
+                    return ::readfrom(m_sockFd, buffer, len, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #else
-                    return ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
+                    return ::recvfrom(m_sockFd, reinterpret_cast<char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
 #endif
                 }
             }
@@ -812,9 +823,9 @@ namespace com
                 else
                 {
 #ifdef LINUX
-                    return ::send(m_sockFd, buffer, len, 0);
+                    return ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_serverAddr), sizeof(m_serverAddr));
 #else
-                    return ::send(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0);
+                    return ::sendto(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #endif
                 }
             }
@@ -836,6 +847,8 @@ namespace com
             BIO* m_bio;
              /// @brief UDP server address on which to bind
             sockaddr_in m_serverAddr;
+            /// @brief client address last received data from
+            sockaddr_in m_clientAddr;
             /// @brief Key file to use for communication
             const std::string m_keyFile;
             /// @brief Certificate file for key file
@@ -920,6 +933,7 @@ namespace com
                 : m_sockFd(-1)
 #else
                 : m_sockFd(INVALID_SOCKET)
+                , m_wsaData()
 #endif
                 , m_cSSL(nullptr)
                 , m_sslctx(nullptr)
@@ -1089,8 +1103,12 @@ namespace com
                 }
                 else
                 {
-                    socklen_t socklen;
-                    return ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+                    socklen_t socklen = sizeof(m_clientAddr);
+#ifdef LINUX
+                    return ::recvfrom(m_sockFd, buffer, lenreinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
+#else
+                    return ::recvfrom(m_sockFd, reinterpret_cast<char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+#endif
                 }
             }
 
@@ -1111,7 +1129,11 @@ namespace com
                 }
                 else
                 {
-                    return ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), sizeof(m_clientAddr));
+#ifdef LINUX
+                    return ::sendto(m_sockFd, buffer, len, 0);
+#else
+                    return ::sendto(m_sockFd, reinterpret_cast<const char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
+#endif
                 }
             }
 

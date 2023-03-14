@@ -1,6 +1,5 @@
 if(CMAKE_COMPILER_IS_GNUCXX)
-    #SET(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
-    SET(CMAKE_CXX_FLAGS "-O3 -Wall")
+    SET(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
     find_package(OpenSSL)
 else()
     SET(CMAKE_CXX_FLAGS "-O3 -Wall")
