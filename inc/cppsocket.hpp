@@ -799,7 +799,7 @@ namespace com
                 {
                     socklen_t socklen = sizeof(m_clientAddr);
 #ifdef LINUX
-                    return ::readfrom(m_sockFd, buffer, len, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+                    return ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #else
                     return ::recvfrom(m_sockFd, reinterpret_cast<char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
 #endif
@@ -1105,7 +1105,7 @@ namespace com
                 {
                     socklen_t socklen = sizeof(m_clientAddr);
 #ifdef LINUX
-                    return ::recvfrom(m_sockFd, buffer, lenreinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
+                    return ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #else
                     return ::recvfrom(m_sockFd, reinterpret_cast<char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #endif
@@ -1130,7 +1130,7 @@ namespace com
                 else
                 {
 #ifdef LINUX
-                    return ::sendto(m_sockFd, buffer, len, 0);
+                    return ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
 #else
                     return ::sendto(m_sockFd, reinterpret_cast<const char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
 #endif
