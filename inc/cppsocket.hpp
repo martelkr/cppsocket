@@ -219,8 +219,10 @@ namespace com
              * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
              */
             TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false)
+#ifdef LINUX
                 : m_sockFd(-1)
-#ifdef WINDOWS
+#else
+                : m_sockFd(INVALID_SOCKET)
                 , m_wsaData()
 #endif
                 , m_cSSL(nullptr)

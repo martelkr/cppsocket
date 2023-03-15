@@ -23,7 +23,8 @@ static const std::string CERT_FILE("/usr/share/ca-certificates/extra/scert.crt")
 static const std::string KEY_FILE("C:\\Users\\marte\\privatekey.key");
 static const std::string CERT_FILE("C:\\Users\\marte\\certificate.crt");
 
-#define ASSERT_EQ(val1, val2) if (val1 != val2) assert(false);
+static int gargc{0};
+static char** gargv = nullptr;
 #endif
 
 using com::socket::TCPServer;
@@ -43,11 +44,7 @@ static void tcpClientThread(void);
 static void tcpSslClient(void);
 static void udpSslClient(void);
 
-#ifdef WINDOWS
-static void TCP_TEST1(void)
-#else
 TEST(TCP, Unsecure_Test)
-#endif
 {
     std::cout << "Start TCP Test 1" << std::endl;
     TCPServer s(TCP_TEST1_SERVER_PORT);
@@ -123,11 +120,7 @@ static void udpClientThread(void)
     ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
 }
 
-#ifdef WINDOWS
-static void UDP_TEST1(void)
-#else
 TEST(UDP, UnsecureTest)
-#endif
 {
     std::cout << "Start UDP Test 1" << std::endl;
 
@@ -291,143 +284,133 @@ auto main(int argc, char* argv[]) -> int
 
 #else
 
-static void TCP_TEST2(int argc, char *argv[]) 
+TEST(TCP, Secure_Test)
 {
-    // check if this is the server or client process running
-    // server process has 1 command line argument
-    // client process has 2 command line arguments
-    if (argc == 1) 
+    PROCESS_INFORMATION pi = {};
+    STARTUPINFO si = {};
+
+    std::string a(gargv[0]);
+    a.append(" -tcp");
+    std::cout << a << std::endl;
+    LPSTR args = const_cast<LPSTR>(a.c_str());
+    // respawn the test process to run the SSL client connection
+    if (!::CreateProcess(gargv[0], args, nullptr, nullptr, false, 0, nullptr, ".", &si, &pi))
     {
-        PROCESS_INFORMATION pi = {};
-        STARTUPINFO si = {};
-
-        std::string a(argv[0]);
-        a.append(" -tcp");
-        std::cout << a << std::endl;
-        LPSTR args = const_cast<LPSTR>(a.c_str());
-        // respawn the test process to run the SSL client connection
-        if (!::CreateProcess(argv[0], args, nullptr, nullptr, false, 0, nullptr, ".", &si, &pi))
-        {
-            std::cout << "Error = " << GetLastError() << std::endl;
-            ASSERT_TRUE(false);
-        }
-
-        TCPServer s(KEY_FILE, CERT_FILE);
-
-        s.bindAndListen(TCP_TEST2_SERVER_PORT);
-        std::cout << "Accepting" << std::endl;
-        TCPClient c = s.accept();
-
-        std::cout << "Server accepted" << std::endl;
-
-        char buffer[100];
-        auto ret = c.read(buffer, sizeof(buffer));
-        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
-
-        buffer[ret] = '\0';
-
-        std::cout << "Server received: " << buffer << std::endl;
-
-        ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
-
-        std::cout << "Received correct data!" << std::endl;
-
-        ret = c.send(TEST_STRING2.c_str(), TEST_STRING2.length());
-        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
-
-        std::cout << "Client sent: " << TEST_STRING2 << std::endl;
-
-        // wait for client process to exit
-        static_cast<void>(::WaitForSingleObject(pi.hProcess, INFINITE));
-        static_cast<void>(::CloseHandle(pi.hThread));
-        static_cast<void>(::CloseHandle(pi.hProcess));
-
-        std::cout << "****************** TCP Test 2 PASSED *************************" << std::endl;
+        std::cout << "Error = " << GetLastError() << std::endl;
+        ASSERT_TRUE(false);
     }
-    else 
-    {
-        // this is the child process!
-        tcpSslClient();
-    }
+
+    TCPServer s(KEY_FILE, CERT_FILE);
+
+    s.bindAndListen(TCP_TEST2_SERVER_PORT);
+    std::cout << "Accepting" << std::endl;
+    TCPClient c = s.accept();
+
+    std::cout << "Server accepted" << std::endl;
+
+    char buffer[100];
+    auto ret = c.read(buffer, sizeof(buffer));
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+    buffer[ret] = '\0';
+
+    std::cout << "Server received: " << buffer << std::endl;
+
+    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+
+    std::cout << "Received correct data!" << std::endl;
+
+    ret = c.send(TEST_STRING2.c_str(), TEST_STRING2.length());
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+    std::cout << "Client sent: " << TEST_STRING2 << std::endl;
+
+    // wait for client process to exit
+    static_cast<void>(::WaitForSingleObject(pi.hProcess, INFINITE));
+    static_cast<void>(::CloseHandle(pi.hThread));
+    static_cast<void>(::CloseHandle(pi.hProcess));
+
+    std::cout << "****************** TCP Test 2 PASSED *************************" << std::endl;
 }
 
-static void UDP_TEST2(int argc, char *argv[]) 
+TEST(UDP, Secure_Test)
 {
-    // check if this is the server or client process running
-    // server process has 1 command line argument
-    // client process has 2 command line arguments
-    if (argc == 1) 
+    PROCESS_INFORMATION pi = {};
+    STARTUPINFO si = {};
+
+    std::string a(gargv[0]);
+    a.append(" -udp");
+    std::cout << a << std::endl;
+    LPSTR args = const_cast<LPSTR>(a.c_str());
+    // respawn the test process to run the SSL client connection
+    if (!::CreateProcess(gargv[0], args, nullptr, nullptr, false, 0, nullptr, ".", &si, &pi))
     {
-        PROCESS_INFORMATION pi = {};
-        STARTUPINFO si = {};
-
-        std::string a(argv[0]);
-        a.append(" -udp");
-        std::cout << a << std::endl;
-        LPSTR args = const_cast<LPSTR>(a.c_str());
-        // respawn the test process to run the SSL client connection
-        if (!::CreateProcess(argv[0], args, nullptr, nullptr, false, 0, nullptr, ".", &si, &pi))
-        {
-            std::cout << "Error = " << GetLastError() << std::endl;
-            ASSERT_TRUE(false);
-        }
-
-        UDPServer s(UDP_TEST2_SERVER_PORT, IP_ADDR, KEY_FILE, CERT_FILE);
-
-        s.accept();
-
-        std::cout << "Accepted!" << std::endl;
-
-        char buffer[100];
-        auto ret = s.read(buffer, sizeof(buffer));
-        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
-
-        buffer[ret] = '\0';
-
-        std::cout << "Server received: " << buffer << std::endl;
-
-        ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
-
-        std::cout << "Received correct data!" << std::endl;
-
-        ret = s.send(TEST_STRING2.c_str(), TEST_STRING2.length());
-        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
-
-        std::cout << "Client sent: " << TEST_STRING2 << std::endl;
-
-        // wait for client process to exit
-        static_cast<void>(::WaitForSingleObject(pi.hProcess, INFINITE));
-        static_cast<void>(::CloseHandle(pi.hThread));
-        static_cast<void>(::CloseHandle(pi.hProcess));
-
-        std::cout << "****************** UDP Test 2 PASSED *************************" << std::endl;
+        std::cout << "Error = " << GetLastError() << std::endl;
+        ASSERT_TRUE(false);
     }
-    else
-    {
-        // this is the child process!
-        udpSslClient();
-    }
+
+    UDPServer s(UDP_TEST2_SERVER_PORT, IP_ADDR, KEY_FILE, CERT_FILE);
+
+    s.accept();
+
+    std::cout << "Accepted!" << std::endl;
+
+    char buffer[100];
+    auto ret = s.read(buffer, sizeof(buffer));
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+    buffer[ret] = '\0';
+
+    std::cout << "Server received: " << buffer << std::endl;
+
+    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+
+    std::cout << "Received correct data!" << std::endl;
+
+    ret = s.send(TEST_STRING2.c_str(), TEST_STRING2.length());
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+    std::cout << "Client sent: " << TEST_STRING2 << std::endl;
+
+    // wait for client process to exit
+    static_cast<void>(::WaitForSingleObject(pi.hProcess, INFINITE));
+    static_cast<void>(::CloseHandle(pi.hThread));
+    static_cast<void>(::CloseHandle(pi.hProcess));
+
+    std::cout << "****************** UDP Test 2 PASSED *************************" << std::endl;
+}
+
+static void TCP_TEST2() 
+{
+    // this is the child process!
+    tcpSslClient();
+}
+
+static void UDP_TEST2() 
+{ 
+    udpSslClient(); 
 }
 
 auto main(int argc, char *argv[]) -> int 
 {
+    int ret = 0;
     if (argc == 1) 
     {
-        TCP_TEST1();
-        TCP_TEST2(argc, argv);
-        UDP_TEST1();
-        UDP_TEST2(argc, argv);
+        gargc = argc;
+        gargv = argv;
+        testing::InitGoogleTest(&argc, argv);
+        ret = RUN_ALL_TESTS();
     }
-    else if (std::strcmp(argv[1], "-tcp") == 0) 
+    else if (std::strcmp(argv[1], "-tcp") == 0)
     {
-        TCP_TEST2(argc, argv);
+        TCP_TEST2();
     }
-    else if (std::strcmp(argv[1], "-udp") == 0) 
+    else if (std::strcmp(argv[1], "-udp") == 0)
     {
-        UDP_TEST2(argc, argv);
+        UDP_TEST2();
     }
 
-    return 0;
+    return ret;
 }
 #endif
 
