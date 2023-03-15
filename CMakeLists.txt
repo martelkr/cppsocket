@@ -19,4 +19,5 @@ endif()
 
 include_directories(inc)
 
+enable_testing()
 add_subdirectory(test)

@@ -46,3 +46,7 @@ test/bin
 x64
 /bin
 test/testcppsocket.dir
+CTestTestfile.cmake
+test/CTestTestfile.cmake
+Testing
+test/Testing
