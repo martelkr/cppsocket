@@ -924,7 +924,17 @@ namespace com
         {
         public:
 
-             /**
+            /**
+             * @brief Construct a new UDPServer object
+             * 
+             */
+            UDPServer(void)
+                : UDPServer("", "")
+            {
+                
+            }
+
+            /**
              * @brief Construct a new secure SSL/DLS UDPServer object
              * 
              * @param keyFile Key file to use for communication
