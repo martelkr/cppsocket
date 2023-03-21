@@ -40,16 +40,34 @@ static const std::string IP_ADDR("127.0.0.1");
 static const std::string TEST_STRING1("This is my testing string 1.");
 static const std::string TEST_STRING2("This is my testing string 2.");
 
-static void tcpClientThread(void);
 static void tcpSslClient(void);
 static void udpSslClient(void);
 
-TEST(TCP, Unsecure_Test)
+TEST(TCP, Unsecure)
 {
     std::cout << "Start TCP Test 1" << std::endl;
     TCPServer s(TCP_TEST1_SERVER_PORT);
 
-    auto t = std::jthread(&tcpClientThread);
+    auto t = std::jthread([]{
+        TCPClient c(IP_ADDR, TCP_TEST1_SERVER_PORT);
+
+        std::cout << "Client connected" << std::endl;
+
+        auto ret = c.send(TEST_STRING1.c_str(), TEST_STRING1.length());
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+        std::cout << "Client sent: " << TEST_STRING1 << std::endl;
+
+        char buffer[100];
+        ret = c.read(buffer, sizeof(buffer));
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+        buffer[ret] = '\0';
+
+        std::cout << "Client received: " << buffer << std::endl;
+
+        ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+    });
     static_cast<void>(t);
 
     std::cout << "Accepting" << std::endl;
@@ -72,52 +90,9 @@ TEST(TCP, Unsecure_Test)
 
     std::cout << "Server sent: " << TEST_STRING2 << std::endl;
 
+    t.join();
+
     std::cout << "********************** TCP Test 1 PASSED *******************" << std::endl;
-}
-
-static void tcpClientThread(void)
-{
-    std::cout << __FUNCTION__ << std::endl;
-    TCPClient c(IP_ADDR, TCP_TEST1_SERVER_PORT);
-
-    std::cout << "Client connected" << std::endl;
-
-    auto ret = c.send(TEST_STRING1.c_str(), TEST_STRING1.length());
-    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
-
-    std::cout << "Client sent: " << TEST_STRING1 << std::endl;
-
-    char buffer[100];
-    ret = c.read(buffer, sizeof(buffer));
-    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
-
-    buffer[ret] = '\0';
-
-    std::cout << "Client received: " << buffer << std::endl;
-
-    ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
-}
-
-static void udpClientThread(void)
-{
-    UDPClient c(IP_ADDR, UDP_TEST1_SERVER_PORT);
-
-    std::cout << "Client connected" << std::endl;
-
-    auto ret = c.send(TEST_STRING1.c_str(), TEST_STRING1.length());
-    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
-
-    std::cout << "Client sent: " << TEST_STRING1 << std::endl;
-
-    char buffer[100];
-    ret = c.read(buffer, sizeof(buffer));
-    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
-
-    buffer[ret] = '\0';
-
-    std::cout << "Client received: " << buffer << std::endl;
-
-    ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
 }
 
 TEST(UDP, UnsecureTest)
@@ -126,8 +101,26 @@ TEST(UDP, UnsecureTest)
 
     UDPServer s(UDP_TEST1_SERVER_PORT, IP_ADDR);
 
-    auto t = std::jthread(&udpClientThread);
-    static_cast<void>(t);
+    auto t = std::jthread([]{
+        UDPClient c(IP_ADDR, UDP_TEST1_SERVER_PORT);
+
+        std::cout << "Client connected" << std::endl;
+
+        auto ret = c.send(TEST_STRING1.c_str(), TEST_STRING1.length());
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+        std::cout << "Client sent: " << TEST_STRING1 << std::endl;
+
+        char buffer[100];
+        ret = c.read(buffer, sizeof(buffer));
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+        buffer[ret] = '\0';
+
+        std::cout << "Client received: " << buffer << std::endl;
+
+        ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+    });
 
     std::cout << "Accepting" << std::endl;
     s.accept();
@@ -151,11 +144,13 @@ TEST(UDP, UnsecureTest)
 
     std::cout << "Server sent: " << TEST_STRING2 << std::endl;
 
+    t.join();
+
     std::cout << "********************** UDP Test 1 PASSED *******************" << std::endl;
 }
 
 #ifdef LINUX
-TEST(TCP, SecureTest)
+TEST(TCP, Secure)
 {
     std::cout << "Start TCP Test 2" << std::endl;
 
@@ -200,7 +195,7 @@ TEST(TCP, SecureTest)
         do
         {
             std::cout << "Waiting for child" << std::endl;
-            pchild = ::wait(&waitVal);
+            pchild = ::waitpid(0, &waitVal, WUNTRACED);
         } while (pchild != p);
 
         std::cout << "****************** TCP SSL Test 2 PASSED *************************" << std::endl;
@@ -213,7 +208,7 @@ TEST(TCP, SecureTest)
         // wait for message to flow thru
         std::this_thread::sleep_for(std::chrono::seconds(1));
         std::cout << "Child is done" << std::endl;
-        std::exit(testing::Test::HasFailure());
+        _exit(testing::Test::HasFailure());
     }
 }
 
@@ -230,6 +225,8 @@ TEST(UDP, SecureTest)
     else if (p != 0)
     {
         UDPServer s(UDP_TEST2_SERVER_PORT, IP_ADDR, KEY_FILE, CERT_FILE);
+
+        std::cout << "Accepting client" << std::endl;
 
         s.accept();
 
@@ -271,8 +268,9 @@ TEST(UDP, SecureTest)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         udpSslClient();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         std::cout << "Child is done" << std::endl;
-        std::exit(testing::Test::HasFailure());
+        _exit(testing::Test::HasFailure());
     }
 }
 
@@ -443,7 +441,6 @@ static void tcpSslClient(void)
 static void udpSslClient(void)
 {
     // wait for server to start accepting
-    std::this_thread::sleep_for(std::chrono::seconds(1));
     UDPClient c(IP_ADDR, UDP_TEST2_SERVER_PORT, KEY_FILE, CERT_FILE);
 
     std::cout << "Client connected" << std::endl;

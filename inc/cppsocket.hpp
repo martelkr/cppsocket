@@ -219,10 +219,8 @@ namespace com
              * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
              */
             TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false)
-#ifdef LINUX
                 : m_sockFd(-1)
-#else
-                : m_sockFd(INVALID_SOCKET)
+#ifdef WINDOWS
                 , m_wsaData()
 #endif
                 , m_cSSL(nullptr)
@@ -924,17 +922,7 @@ namespace com
         {
         public:
 
-            /**
-             * @brief Construct a new UDPServer object
-             * 
-             */
-            UDPServer(void)
-                : UDPServer("", "")
-            {
-                
-            }
-
-            /**
+             /**
              * @brief Construct a new secure SSL/DLS UDPServer object
              * 
              * @param keyFile Key file to use for communication
