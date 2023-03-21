@@ -28,12 +28,8 @@ jobs:
         FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
         FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
       run: |
-        ls /usr |
-        ls /usr/share |
-        ls /usr/share/ca-certificates |
-        ls /usr/share/ca-certificates/extra |
-        echo "${FILE_ONE}" | base64 --decode > /usr/share/ca-certificates/extra/key.pem |
-        echo "${FILE_TWO}" | base64 --decode > /usr/share/ca-certificates/extra/scert.crt
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.

@@ -11,8 +11,8 @@
 #include <sys/wait.h>
 
 // @TODO: replace with your test key and certificate file
-static const std::string KEY_FILE("/usr/share/ca-certificates/extra/key.pem");
-static const std::string CERT_FILE("/usr/share/ca-certificates/extra/scert.crt");
+static const std::string KEY_FILE{std::getenv("HOME") + std::string("/key.pem")};
+static const std::string CERT_FILE{std::getenv("HOME") + std::string("/scert.crt")};
 #else
 #include <tchar.h>
 #include <locale>
