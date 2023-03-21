@@ -11,11 +11,14 @@ SET(LICENSE "MIT")
 
 project(cppsocket VERSION ${project_version} LANGUAGES CXX)
 
-if (CMAKE_COMPILER_IS_GNUCXX)
+if (CMAKE_GNU_COMPILER_ID)
     add_definitions(-DLINUX)
 else()
     add_definitions(-DWINDOWS)
 endif()
+
+message([DEBUG] "$ENV{CI}")
+message([DEBUG] "$ENV{GITHUB_ACTION}")
 
 include_directories(inc)
 
