@@ -1,4 +1,4 @@
-if(CMAKE_GNU_COMPILER_ID)
+if(CMAKE_COMPILER_IS_GNUCXX)
     SET(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
     find_package(OpenSSL REQUIRED)
     find_package(GTest REQUIRED)

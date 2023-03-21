@@ -11,7 +11,7 @@ SET(LICENSE "MIT")
 
 project(cppsocket VERSION ${project_version} LANGUAGES CXX)
 
-if (CMAKE_GNU_COMPILER_ID)
+if (CMAKE_COMPILER_IS_GNUCXX)
     add_definitions(-DLINUX)
 else()
     add_definitions(-DWINDOWS)
