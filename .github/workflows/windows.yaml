@@ -20,12 +20,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
   
-    - uses: shogo82148/actions-setup-perl@main
-      with:
-        perl-version: '5.32.1.1'
-        distribution: strawberry
-    - run: cpanm --installdeps .
-    - run: prove -lv t
     - uses: ilammy/setup-nasm@v1
     - uses: actions/checkout@v1
     - run: perl Configure VC-WIN64A
