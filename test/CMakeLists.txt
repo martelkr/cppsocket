@@ -25,7 +25,7 @@ add_executable(testcppsocket TestCppSocket.cpp)
 
 target_include_directories(testcppsocket PRIVATE ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
-if(NOT CMAKE_GNU_COMPILER_ID and DEFINED ENV{CI})
+if(NOT CMAKE_GNU_COMPILER_ID AND DEFINED ENV{CI})
     target_link_libraries(main PRIVATE ${GTEST_LIBRARIES} OpenSSL::SSL OpenSSL::Crypto)
 else()
     target_link_libraries(testcppsocket ${GTEST_LIBRARIES} ${OPENSSL_LIBRARIES})
