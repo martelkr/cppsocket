@@ -1,6 +1,7 @@
 # C++ client/server with SSL/TLS support (header file only)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
-![Cmake Build](https://github.com/martelkr/cppsocket/actions/workflows/cmake.yml/badge.svg)
+![Linux Build](https://github.com/martelkr/cppsocket/actions/workflows/linux.yml/badge.svg)
+![Windows Build](https://github.com/martelkr/cppsocket/actions/workflows/windows.yml/badge.svg)
 
 ## About
 This is a header file only implementation of a C++ client/server with or without SSL/TLS/DTLS.
