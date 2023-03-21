@@ -22,7 +22,7 @@ jobs:
   
     - uses: shogo82148/actions-setup-perl@v1.20.2
       with:
-        perl-version: '5.32'
+        perl-version: '5.32.1.1'
         distribution: strawberry
     - run: cpanm --installdeps .
     - run: prove -lv t
