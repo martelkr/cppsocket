@@ -17,9 +17,6 @@ else()
     add_definitions(-DWINDOWS)
 endif()
 
-message([DEBUG] "$ENV{CI}")
-message([DEBUG] "$ENV{GITHUB_ACTION}")
-
 include_directories(inc)
 
 enable_testing()
