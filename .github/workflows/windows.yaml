@@ -20,12 +20,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
   
-    - uses: ilammy/setup-nasm@v1
-    - uses: actions/checkout@v1
-    - run: perl Configure VC-WIN64A
-    - run: nmake
-    - run: nmake test
-    - run: nmake install
+    - name: Install openssl
+      run: winget install openssl
   
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
