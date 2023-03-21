@@ -1,6 +1,6 @@
 name: cmake
 
-n:
+on:
   push:
     branches: [ "main" ]
   pull_request:
