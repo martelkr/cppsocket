@@ -20,8 +20,8 @@ static const std::string CERT_FILE{std::getenv("HOME") + std::string("/scert.crt
 #include <openssl/applink.c>
 
 // @TODO: replace with your test key and certificate file
-static const std::string KEY_FILE("C:\\Users\\marte\\privatekey.key");
-static const std::string CERT_FILE("C:\\Users\\marte\\certificate.crt");
+static const std::string KEY_FILE{getenv("USERPROFILE") + std::string("\\privatekey.key")};
+static const std::string CERT_FILE{getenv("USERPROFILE") + std::string("\\certificate.crt")};
 
 static int gargc{0};
 static char** gargv = nullptr;
