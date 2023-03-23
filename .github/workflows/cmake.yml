@@ -69,7 +69,9 @@ jobs:
     - name: Build openssl
       working-directory: ${{github.workspace}}/openssl
       run: |
+        ls -lat |
         perl Configure VC-WIN64A |
+        ls -lat |
         nmake |
         nmake test |
         nmake install
