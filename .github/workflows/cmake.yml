@@ -49,12 +49,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
   
-    - name: Install openssl
-      run: vcpkg install openssl-windows:x64-windows-static
-  
-    - name: Instal gtest
-      uses: MarkusJx/googletest-installer@v1.1.1
-
     - name: Write files
       env: 
         FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
@@ -62,6 +56,24 @@ jobs:
       run: |
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
+
+    - name: Clone openssl
+      uses: actions/checkout@v3
+      with:
+        repository: openssl/openssl
+        path: openssl
+        ref: openssl-3.1.0
+
+    - name: Build openssl
+      working-directory: ${{github.workspace}}/openssl
+      run: |
+        perl Configure VC-WIN64A |
+        nmake |
+        nmake test |
+        nmake install
+  
+    - name: Instal gtest
+      uses: MarkusJx/googletest-installer@v1.1.1
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.

@@ -48,7 +48,7 @@ namespace
      * @param ip IP address to use
      * @param addr sockaddr_in structure to populate
      */
-    void initAddr(const int port, const std::string& ip, sockaddr_in& addr)
+    void initAddr(const int port, const std::string& ip, sockaddr_in& addr) noexcept
     {
         addr.sin_family = AF_INET;
         if (ip.empty() || ip.compare("0.0.0.0") == 0)
@@ -74,7 +74,7 @@ namespace
      * 
      * @return int 1 for success
      */
-    static int genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len)
+    static int genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len) noexcept
     {
         ::srand(time(nullptr));
 
@@ -108,7 +108,7 @@ namespace
      * 
      * @return int 1 for valid cookie, 0 for invalid
      */
-    static int verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len)
+    static int verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len) noexcept
     {
         sockaddr_in addr;
         static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
@@ -135,7 +135,7 @@ namespace
      * 
      * @return int 1 for good callback
      */
-    static int verifyCallback (int val, X509_STORE_CTX *ctx)
+    static int verifyCallback (int val, X509_STORE_CTX *ctx) noexcept
     {
         static_cast<void>(val);
         static_cast<void>(ctx);
@@ -157,7 +157,7 @@ namespace com
          * @return true Windows sockets are ready
          * @return false Windows sockets not ready yet
          */
-        bool WinsockInitialized(void) 
+        bool WinsockInitialized(void) noexcept
         {
             SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
             if (s == INVALID_SOCKET) 
@@ -183,7 +183,7 @@ namespace com
 #ifdef LINUX
             explicit TCPClient(const int fd, SSL_CTX* sslctx = nullptr)
 #else
-            explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr)
+          explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr) throw(std::runtime_error)
 #endif
                 : m_sockFd(fd)
 #ifdef WINDOWS
@@ -218,7 +218,7 @@ namespace com
              * @param port Port of the TCP server
              * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
              */
-            TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false)
+            TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false) throw(std::runtime_error)
                 : m_sockFd(-1)
 #ifdef WINDOWS
                 , m_wsaData()
@@ -316,7 +316,7 @@ namespace com
              * @param len Length of the receive buffer
              * @return ssize_t The length of data received
              */
-            [[nodiscard]] ssize_t read(void* buffer, size_t len)
+            [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -340,7 +340,7 @@ namespace com
              * @param len Length of the data to send
              * @return ssize_t Length of data sent on the socket
              */
-            [[nodiscard]] ssize_t send(const void* buffer, size_t len)
+            [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -379,7 +379,7 @@ namespace com
              * @brief Initialize the TCP client to not use the Nagle algorithm
              * 
              */
-            void init(void) const
+            void init(void) const throw(std::runtime_error)
             {
                 int flag = 1;
 #ifdef LINUX
@@ -401,7 +401,7 @@ namespace com
              * @brief Construct a new TCPServer object
              * 
              */
-            TCPServer(void)
+            TCPServer(void) throw(std::runtime_error)
                 : TCPServer("", "")
             {
             }
@@ -412,7 +412,7 @@ namespace com
              * @param keyFile Key file to use for communication
              * @param certFile Certifaction file for provided key
              */
-            TCPServer(const std::string& keyFile, const std::string& certFile)
+            TCPServer(const std::string& keyFile, const std::string& certFile) throw(std::runtime_error)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -470,7 +470,7 @@ namespace com
              * @param ip IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            explicit TCPServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3)
+            explicit TCPServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3) throw(std::runtime_error)
                 : TCPServer()
             {
                 bindAndListen(port, ip, backlog);
@@ -485,7 +485,7 @@ namespace com
              * @param certFile Certifaction file for provided key
              * @param backlog Backlog for TCP accept calls
              */
-            TCPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile, const int backlog = 3)
+            TCPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile, const int backlog = 3) throw(std::runtime_error)
                 : TCPServer(keyFile, certFile)
             {
                 bindAndListen(port, ip, backlog);
@@ -512,7 +512,7 @@ namespace com
              * 
              * @return TCPClient Newly accepted TCP connection
              */
-            [[nodiscard]] TCPClient accept(void)
+            [[nodiscard]] TCPClient accept(void) throw(std::runtime_error)
             {
                 sockaddr_in client = {};
                 socklen_t clientLen = sizeof(client);
@@ -555,7 +555,7 @@ namespace com
              * @param ip IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            void bindAndListen(const uint16_t port, const std::string& ip = "", const int backlog = 3)
+            void bindAndListen(const uint16_t port, const std::string& ip = "", const int backlog = 3) throw(std::runtime_error)
             {
                 initAddr(port, ip, m_serverAddr);
 
@@ -608,7 +608,7 @@ namespace com
              * @brief Initialize the TCP server for IP and port reusability 
              * 
              */
-            void init(void) const
+            void init(void) const throw(std::runtime_error)
             {
                 int opt = 1;
 #ifdef LINUX
@@ -630,7 +630,7 @@ namespace com
              * @brief UDPClient default constructor
              * 
              */
-            UDPClient(void)
+            UDPClient(void) throw(std::runtime_error)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -652,7 +652,7 @@ namespace com
              * @param ip IP address of the UDP server
              * @param port Port of the UDP server
              */
-            UDPClient(const std::string& ip, const uint16_t port)
+            UDPClient(const std::string& ip, const uint16_t port) throw(std::runtime_error)
                 : UDPClient()
             {
                 if (!connect(ip, port))
@@ -667,7 +667,7 @@ namespace com
              * @param keyFile SSL key file to use
              * @param certFile SSL certificate file to use
              */
-            UDPClient(const std::string& keyFile, const std::string& certFile)
+            UDPClient(const std::string& keyFile, const std::string& certFile) throw(std::runtime_error)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -691,7 +691,7 @@ namespace com
              * @param keyFile SSL key file to use
              * @param certFile SSL certificate file to use
              */
-            UDPClient(const std::string& ip, const uint16_t port, const std::string& keyFile, const std::string& certFile)
+            UDPClient(const std::string& ip, const uint16_t port, const std::string& keyFile, const std::string& certFile) throw(std::runtime_error)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -741,7 +741,7 @@ namespace com
              * @return true UDP connection successful
              * @return false UDP connection unsuccessful
              */
-            [[nodiscard]] bool connect(const std::string& ip, const int port)
+            [[nodiscard]] bool connect(const std::string& ip, const int port) noexcept
             {
                 initAddr(port, ip, m_serverAddr);
 
@@ -754,7 +754,7 @@ namespace com
              * @return true UDP connection successful
              * @return false UDP connection unsuccessful
              */
-            [[nodiscard]] bool connect(void)
+            [[nodiscard]] bool connect(void) noexcept
             {
                 auto ret = ::connect(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 
@@ -788,7 +788,7 @@ namespace com
              * @param len Length of the receive buffer
              * @return ssize_t The length of data received
              */
-            [[nodiscard]] ssize_t read(void* buffer, size_t len)
+            [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -813,7 +813,7 @@ namespace com
              * @param len Length of the data to send
              * @return ssize_t Length of data sent on the socket
              */
-            [[nodiscard]] ssize_t send(const void* buffer, size_t len)
+            [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -862,7 +862,7 @@ namespace com
              * @brief Initialize the UDP client
              * 
              */
-            void init(void)
+            void init(void) throw(std::runtime_error)
             {
 #ifdef WINDOWS
                 {
@@ -928,7 +928,7 @@ namespace com
              * @param keyFile Key file to use for communication
              * @param certFile Certifaction file for provided key
              */
-            UDPServer(const std::string& keyFile, const std::string& certFile)
+            UDPServer(const std::string& keyFile, const std::string& certFile) throw(std::runtime_error)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -1013,7 +1013,7 @@ namespace com
              * @param port Port on which to bind TCP server
              * @param ip IP address on which to bind TCP server
              */
-            explicit UDPServer(const uint16_t port, const std::string& ip = "0.0.0.0")
+            explicit UDPServer(const uint16_t port, const std::string& ip = "0.0.0.0") throw(std::runtime_error)
                 : UDPServer("", "")
             {
                 bind(port, ip);
@@ -1027,7 +1027,7 @@ namespace com
              * @param keyFile Key file to use for communication
              * @param certFile Certifaction file for provided key
              */
-            UDPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile)
+            UDPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile) throw(std::runtime_error)
                 : UDPServer(keyFile, certFile)
             {
                 bind(port, ip);
@@ -1070,7 +1070,7 @@ namespace com
              * NOTE: Unsecure does nothing and this call is not needed
              * 
              */
-            void accept(void)
+            void accept(void) noexcept
             {
                 if (m_certFile.length() > 0 && m_keyFile.length() > 0)
                 {
@@ -1094,7 +1094,7 @@ namespace com
              * 
              * @return ssize_t The length of data received
              */
-            [[nodiscard]] ssize_t read(void* buffer, size_t len)
+            [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -1120,7 +1120,7 @@ namespace com
              * 
              * @return ssize_t Length of data sent on the socket
              */
-            [[nodiscard]] ssize_t send(const void* buffer, size_t len)
+            [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
             {
                 if (m_cSSL)
                 {
@@ -1143,7 +1143,7 @@ namespace com
              * @param port Port on which to bind
              * @param ip IP interface to use
              */
-            void bind(const int port, const std::string& ip = "0.0.0.0")
+            void bind(const int port, const std::string& ip = "0.0.0.0") throw(std::runtime_error)
             {
                 initAddr(port, ip, m_serverAddr);
 
