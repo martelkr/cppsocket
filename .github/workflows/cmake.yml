@@ -48,7 +48,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-  
+
     - name: Write files
       env: 
         FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
@@ -64,6 +64,8 @@ jobs:
         path: openssl
         ref: openssl-3.1.0
 
+    - uses: ilammy/setup-nasm@v1
+    - uses: ilammy/msvc-dev-cmd@v1
     - name: Build openssl
       working-directory: ${{github.workspace}}/openssl
       run: |
