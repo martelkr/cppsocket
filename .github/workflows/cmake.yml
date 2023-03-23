@@ -49,6 +49,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Openssl check
+      run: |
+          openssl version -d |
+          openssl version -a
+
     - name: Write files
       env: 
         FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
