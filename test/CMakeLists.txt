@@ -7,9 +7,9 @@ else()
     if(DEFINED ENV{CI})
         # github action CI needs
         set(OPENSSL_USE_STATIC_LIBS TRUE)
-        set(GTEST_LIBRARY "/usr/lib/libgtest.a")
-        set(GTEST_INCLUDE_DIR "/usr/include")
-        set(GTEST_MAIN_LIBRARY "/usr/lib/libgtest_main.a")
+        set(GTEST_LIBRARY "D:/gtest/lib/gtest.lib")
+        set(GTEST_INCLUDE_DIR "D:/gtest/include")
+        set(GTEST_MAIN_LIBRARY "D:/gtest/lib/gtest_main.lib")
     else()
         # this may not be needed or need changing but I needed it
         # this requires setting Windows environment settings for this user with these correct values
@@ -24,7 +24,7 @@ else()
     find_package(GTest REQUIRED)
 endif()
 
-include_directories(../inc ${GTEST_INCLUDE_DIR})
+include_directories(../inc)
 
 add_executable(testcppsocket TestCppSocket.cpp)
 
