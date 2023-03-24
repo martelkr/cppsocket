@@ -78,7 +78,7 @@ jobs:
       with:
         repository: openssl/openssl
         path: D:/a/cppsocket/cppsocket/openssl
-        ref: openssl_3.1.0
+        ref: openssl-3.1.0
 
     - name: Install OpenSSL
       working-directory: D:/a/cppsocket/cppsocket/openssl
