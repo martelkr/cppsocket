@@ -101,6 +101,9 @@ jobs:
       working-directory: D:/a/cppsocket/cppsocket/openssl
       run: nmake install
 
+    - name: Openssl
+      run: openssl version -a
+
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
