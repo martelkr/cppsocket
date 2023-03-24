@@ -10,6 +10,8 @@ else()
         set(GTEST_LIBRARY "D:/gtest/lib/gtest.lib")
         set(GTEST_INCLUDE_DIR "D:/gtest/include")
         set(GTEST_MAIN_LIBRARY "D:/gtest/lib/gtest_main.lib")
+        set(OPENSSL_INCLUDE_DIR "C:\Program Files\Common Files\SSL\include")
+        set(OPENSSL_LIBRARIES "C:\Program Files Common Files\SSL\lib")
     else()
         # this may not be needed or need changing but I needed it
         # this requires setting Windows environment settings for this user with these correct values
