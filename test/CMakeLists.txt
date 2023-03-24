@@ -5,12 +5,14 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 else()
     SET(CMAKE_CXX_FLAGS "-O3 -Wall")
     if(DEFINED ENV{CI})
+        # github action CI needs
         set(OPENSSL_USE_STATIC_LIBS TRUE)
         set(GTEST_LIBRARY "/usr/lib/libgtest.a")
         set(GTEST_INCLUDE_DIR "/usr/include")
         set(GTEST_MAIN_LIBRARY "/usr/lib/libgtest_main.a")
-        set(GTEST_INCLUDE_DIR "/usr/include")
     else()
+        # this may not be needed or need changing but I needed it
+        # this requires setting Windows environment settings for this user with these correct values
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
         set(GTEST_LIBRARY $ENV{GTEST_LIBRARY})
         set(GTEST_INCLUDE_DIR $ENV{GTEST_INCLUDE_DIR})
@@ -22,7 +24,7 @@ else()
     find_package(GTest REQUIRED)
 endif()
 
-include_directories(../inc)
+include_directories(../inc ${GTEST_INCLUDE_DIR})
 
 add_executable(testcppsocket TestCppSocket.cpp)
 
