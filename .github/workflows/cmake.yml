@@ -81,6 +81,9 @@ jobs:
         path: D:/a/cppsocket/cppsocket/openssl
         ref: openssl-3.1.0
 
+    - name: Find openssl
+      run: dir "D:/a/cppsocket/cppsocket/openssl"
+
     - name: Configure OpenSSL
       working-directory: D:/a/cppsocket/cppsocket/openssl
       run: perl Configure VC-WIN64A
