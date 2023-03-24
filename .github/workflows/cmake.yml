@@ -58,10 +58,10 @@ jobs:
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
 
     - name: Find openssl
-      run: dir ""C:/Program Files/Common Files/SSL/include""
+      run: dir "C:/Program Files/Common Files/SSL/include"
 
     - name: Inside include
-      run: dir ""C:/Program Files/Common Files/SSL/include/openssl""
+      run: dir "C:/Program Files/Common Files/SSL/include/openssl"
             
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
