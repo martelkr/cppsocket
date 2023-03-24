@@ -77,11 +77,11 @@ jobs:
       uses: actions/checkout@v3
       with:
         repository: openssl/openssl
-        path: D:/a/openssl
+        path: D:/a/cppsocket/cppsocket/openssl
         ref: openssl_3.1.0
 
     - name: Install OpenSSL
-      working-directory: D:/a/openssl
+      working-directory: D:/a/cppsocket/cppsocket/openssl
       run: |
         perl Configure VC-WIN64A |
         nmake |
