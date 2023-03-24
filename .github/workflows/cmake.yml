@@ -61,7 +61,13 @@ jobs:
       run: openssl version -a
 
     - name: Drives
-      run: fsutil fsinfo drives
+      run: dir "C:/Program Files/OpenSSL"
+
+    - name: Drives
+      run: dir "C:/Program Files/OpenSSL/include"
+
+    - name: Drives
+      run: dir "C:/Program Files/OpenSSL/lib"
 
     - name: openssl dir
       run: dir "C:/Program Files/Common Files/SSL"
