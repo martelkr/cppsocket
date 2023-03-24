@@ -29,19 +29,20 @@ jobs:
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
-      # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -VV -C ${{env.BUILD_TYPE}}
+
+    - name: Generate Test Report
+      uses: threeal/gcovr-action@latest
+      with:
+        coveralls-send: true
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
   Windows:
     runs-on: windows-latest
@@ -59,21 +60,6 @@ jobs:
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
 
-    - name: Openssl
-      run: openssl version -a
-
-    - name: Drives
-      run: dir "C:/Program Files/"
-
-    - name: Drives
-      run: dir "C:/Program Files/OpenSSL/bin"
-
-    - name: Drives
-      run: dir "C:/"
-
-    - name: Find openssl
-      run: dir "D:/"
-
     - name: Clone openssl
       uses: actions/checkout@v3
       with:
@@ -81,28 +67,22 @@ jobs:
         path: D:/a/cppsocket/cppsocket/openssl
         ref: openssl-3.1.0
 
+    - name: Build and install OpenSSL
+      working-directory: D:/a/cppsocket/cppsocket/openssl
+      run: |
+          perl Configure VC-WIN64A
+          nmake
+          nmake test
+          nmake install
+
     - name: Find openssl
-      run: dir "D:/a/cppsocket/cppsocket/openssl"
+      run: dir "C:/Program Files/OpenSSL"
 
-    - name: Configure OpenSSL
-      working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: perl Configure VC-WIN64A
+    - name: Find openssl
+      run: dir "C:/Program Files/OpenSSL/include"
 
-    - name: Nmake OpenSSL
-      working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: nmake
-
-    - name: Nmake test OpenSSL
-      working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: nmake test |
-        nmake install
-
-    - name: Nmake install OpenSSL
-      working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: nmake install
-
-    - name: Openssl
-      run: openssl version -a
+    - name: Find openssl
+      run: dir "C:/Program Files/OpenSSL/lib"
 
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
@@ -116,4 +96,33 @@ jobs:
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      run: ctest -VV -C ${{env.BUILD_TYPE}}  
+      run: ctest -VV -C ${{env.BUILD_TYPE}}
+
+  Linux-clang:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install gtest manually
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Write files
+      env: 
+        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
+      run: |
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
+
+    - name: Build and test this project
+      run: |
+        cmake . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+        cmake --build build
+        ctest --test-dir build
+
+    - name: Generate a code coverage report
+      uses: threeal/gcovr-action@latest
+      with:
+        gcov-executable: llvm-cov gcov
+  
