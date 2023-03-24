@@ -63,6 +63,9 @@ jobs:
     - name: Drives
       run: fsutil fsinfo drives
 
+    - name: openssl dir
+      run: dir "C:/Program Files/Common Files/SSL"
+
     - name: Find openssl
       run: dir "C:/Program Files/Common Files/SSL/include"
 
