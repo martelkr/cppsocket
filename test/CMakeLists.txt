@@ -1,9 +1,9 @@
 if(CMAKE_COMPILER_IS_GNUCXX)
-    SET(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
+    set(CMAKE_CXX_FLAGS "-O3 -Wall -Werror")
     find_package(OpenSSL REQUIRED)
     find_package(GTest REQUIRED)
 else()
-    SET(CMAKE_CXX_FLAGS "-O3 -Wall")
+    SET(CMAKE_CXX_FLAGS "-Wall")
     if(DEFINED ENV{CI})
         # github action CI needs
         set(OPENSSL_USE_STATIC_LIBS TRUE)
