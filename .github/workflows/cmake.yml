@@ -61,23 +61,17 @@ jobs:
       run: openssl version -a
 
     - name: Drives
-      run: dir "C:/Program Files/OpenSSL"
+      run: dir "C:/Program Files/"
 
     - name: Drives
-      run: dir "C:/Program Files/OpenSSL/include"
+      run: dir "C:/Program Files/OpenSSL/bin"
 
     - name: Drives
-      run: dir "C:/Program Files/OpenSSL/lib"
-
-    - name: openssl dir
-      run: dir "C:/Program Files/Common Files/SSL"
+      run: dir "C:/"
 
     - name: Find openssl
-      run: dir "C:/Program Files/Common Files/SSL/include"
+      run: dir "D:/"
 
-    - name: Inside include
-      run: dir "C:/Program Files/Common Files/SSL/include/openssl"
-            
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
