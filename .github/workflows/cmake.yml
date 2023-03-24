@@ -81,13 +81,22 @@ jobs:
         path: D:/a/cppsocket/cppsocket/openssl
         ref: openssl-3.1.0
 
-    - name: Install OpenSSL
+    - name: Configure OpenSSL
       working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: |
-        perl Configure VC-WIN64A |
-        nmake |
-        nmake test |
+      run: perl Configure VC-WIN64A
+
+    - name: Nmake OpenSSL
+      working-directory: D:/a/cppsocket/cppsocket/openssl
+      run: nmake
+
+    - name: Nmake test OpenSSL
+      working-directory: D:/a/cppsocket/cppsocket/openssl
+      run: nmake test |
         nmake install
+
+    - name: Nmake install OpenSSL
+      working-directory: D:/a/cppsocket/cppsocket/openssl
+      run: nmake install
 
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
