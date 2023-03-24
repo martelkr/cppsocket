@@ -57,6 +57,12 @@ jobs:
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
 
+    - name: Openssl
+      run: openssl version -a
+
+    - name: Drives
+      run: fsutil fsinfo drives
+
     - name: Find openssl
       run: dir "C:/Program Files/Common Files/SSL/include"
 
