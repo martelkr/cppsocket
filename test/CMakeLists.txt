@@ -12,6 +12,7 @@ else()
         set(GTEST_MAIN_LIBRARY "D:/gtest/lib/gtest_main.lib")
         set(OPENSSL_INCLUDE_DIR "C:/Program Files/OpenSSL/include")
         set(OPENSSL_LIBRARIES "C:/Program Files/OpenSSL/lib")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     else()
         # this may not be needed or need changing but I needed it
         # this requires setting Windows environment settings for this user with these correct values
