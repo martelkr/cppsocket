@@ -75,15 +75,6 @@ jobs:
           nmake test
           nmake install
 
-    - name: Find openssl
-      run: dir "C:/Program Files/OpenSSL"
-
-    - name: Find openssl
-      run: dir "C:/Program Files/OpenSSL/include"
-
-    - name: Find openssl
-      run: dir "C:/Program Files/OpenSSL/lib"
-
     - name: Instal gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
