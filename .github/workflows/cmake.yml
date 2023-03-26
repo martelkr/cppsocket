@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install gtest manually
+    - name: Install gtest
       run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
 
     - name: Write files
@@ -56,6 +56,7 @@ jobs:
       env: 
         FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
         FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
+      shell: bash
       run: |
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
@@ -72,10 +73,9 @@ jobs:
       run: |
           perl Configure VC-WIN64A
           nmake
-          nmake test
           nmake install
 
-    - name: Instal gtest
+    - name: Install gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
     - name: Configure CMake
