@@ -7,7 +7,7 @@ else()
     if(DEFINED ENV{CI})
         # github action CI needs
         set(CMAKE_CXX_FLAGS "-Wall")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS /NODEFAULTLIB")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB")
         set(OPENSSL_USE_STATIC_LIBS TRUE)
         set(GTEST_LIBRARY "D:/gtest/lib/gtest.lib")
         set(GTEST_INCLUDE_DIR "D:/gtest/include")
