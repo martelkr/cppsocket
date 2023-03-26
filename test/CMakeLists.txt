@@ -3,7 +3,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     find_package(OpenSSL REQUIRED)
     find_package(GTest REQUIRED)
 else()
-    set(CMAKE_CXX_FLAGS "-Wall")
+    set(CMAKE_CXX_FLAGS "-Wall /NODEFAULTLIB")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
     if(DEFINED ENV{CI})
         # github action CI needs
