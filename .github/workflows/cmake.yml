@@ -28,15 +28,11 @@ jobs:
         echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
-    - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-
-    - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      run: ctest -VV -C ${{env.BUILD_TYPE}}
+    - name: Build and test
+      run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
 
     - name: Generate Test Report
       uses: threeal/gcovr-action@latest
@@ -78,14 +74,9 @@ jobs:
     - name: Install gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
-    - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-
-    - name: Build
-      # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      run: ctest -VV -C ${{env.BUILD_TYPE}}
+    - name: Build and Test
+      run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
   

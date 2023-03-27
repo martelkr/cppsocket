@@ -28,11 +28,11 @@ jobs:
         echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
-    - name: Build and test this project
+    - name: Build and Test
       run: |
         cmake . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
         cmake --build build
-        ctest --test-dir build
+        ctest -VV --test-dir build
 
     - name: Generate a code coverage report
       uses: threeal/gcovr-action@latest
