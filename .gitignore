@@ -42,6 +42,7 @@ CMakeLists.txt
 *.vcxproj*
 *.sln
 test/Debug
+test/Release
 test/bin
 x64
 /bin

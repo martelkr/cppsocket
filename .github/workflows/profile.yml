@@ -11,7 +11,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  Linux:
+  Profile:
     runs-on: ubuntu-latest
 
     steps:
