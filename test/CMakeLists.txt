@@ -31,6 +31,12 @@ else()
     message(FATAL_ERROR "Failed to find correct compiler")
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "PROFILE")
+    set(CMAKE_C_FLAGS_PROFILE --coverage)
+    set(CMAKE_CXX_FLAGS_PROFILE --coverage)
+    add_link_options("--coverage")
+endif()
+
 include_directories(../inc)
 
 add_executable(testcppsocket TestCppSocket.cpp)
