@@ -30,7 +30,7 @@ jobs:
     - name: Profile build and test
       run: |
           cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=PROFILE .
-          cmake  -DCMAKE_BUILD_TYPE=PROFILE --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          cmake  -DCMAKE_BUILD_TYPE=PROFILE --build ${{github.workspace}}/build
           ctest -VV ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
 
     - name: Generate Test Report
