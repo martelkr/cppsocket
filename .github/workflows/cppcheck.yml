@@ -3,8 +3,10 @@ name: cppcheck
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  # this currently does not work on pull requests
+  # https://github.com/deep5050/cppcheck-action/issues/48
+  #pull_request:
+  #  branches: [ "main" ]
 
 env:
   BUILD_TYPE: Release
