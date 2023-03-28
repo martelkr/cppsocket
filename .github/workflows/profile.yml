@@ -27,11 +27,14 @@ jobs:
         echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
-    - name: Coverage build and test
-      run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Coverage .
-          cmake -DCMAKE_BUILD_TYPE=Coverage --build ${{github.workspace}}/build
-          ctest -VV ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
+    - name: Coverage configure
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Coverage .
+
+    - name: Coverage build
+      run: cmake -DCMAKE_BUILD_TYPE=Coverage --build ${{github.workspace}}/build
+
+    - name: Coverage test
+      run: ctest -VV ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
 
     - name: Generate Test Report
       uses: threeal/gcovr-action@latest
