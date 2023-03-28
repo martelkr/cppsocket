@@ -741,7 +741,7 @@ namespace com
              * @return true UDP connection successful
              * @return false UDP connection unsuccessful
              */
-            [[nodiscard]] bool connect(const std::string& ip, const int port) noexcept
+            [[nodiscard]] bool connect(const std::string& ip, const int port) noexcept(false)
             {
                 initAddr(port, ip, m_serverAddr);
 
