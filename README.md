@@ -128,7 +128,7 @@ UDPClient c("127.0.0.1", 54321); // add key file and cert file here for secure c
 
 ## Thread Safety
 
-Do not share TCPClient, UDPClient or UDPServer objects across threads unless you provide your own thread safety on the send/read calls.
+Do not share TCPServer, TCPClient, UDPClient or UDPServer objects across threads unless you provide your own thread safety on the send/read and accept calls.
 
 ## Installation
 
