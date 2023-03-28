@@ -28,13 +28,13 @@ jobs:
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
     - name: Coverage configure
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Coverage .
+      run: cmake -DCMAKE_BUILD_TYPE=Coverage .
 
     - name: Coverage build
-      run: cmake --build ${{github.workspace}}/build --config Coverage
+      run: cmake --build . --config Coverage
 
     - name: Coverage test
-      run: ctest -VV --test-dir ${{github.workspace}}/build -C Coverage
+      run: ctest -VV -C Coverage
 
     - name: Generate Test Report
       uses: threeal/gcovr-action@latest
