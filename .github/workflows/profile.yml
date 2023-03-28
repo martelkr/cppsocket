@@ -1,4 +1,4 @@
-name: profile
+name: coverage
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  Profile:
+  Coverage:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,7 @@ jobs:
     - name: Profile build and test
       run: |
           cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=PROFILE .
-          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          cmake  -DCMAKE_BUILD_TYPE=PROFILE --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
           ctest -VV ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
 
     - name: Generate Test Report
