@@ -27,10 +27,10 @@ jobs:
         echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
-    - name: Profile build and test
+    - name: Coverage build and test
       run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=PROFILE .
-          cmake  -DCMAKE_BUILD_TYPE=PROFILE --build ${{github.workspace}}/build
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Coverage .
+          cmake -DCMAKE_BUILD_TYPE=Coverage --build ${{github.workspace}}/build
           ctest -VV ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
 
     - name: Generate Test Report
