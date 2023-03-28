@@ -34,7 +34,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config Coverage
 
     - name: Coverage test
-      run: ctest -VV ${{github.workspace}}/build -C Coverage
+      run: ctest -VV --test-dir ${{github.workspace}}/build -C Coverage
 
     - name: Generate Test Report
       uses: threeal/gcovr-action@latest
