@@ -3,6 +3,7 @@
 ![cmake Build](https://github.com/martelkr/cppsocket/actions/workflows/cmake.yml/badge.svg)
 ![clang Build](https://github.com/martelkr/cppsocket/actions/workflows/clang.yml/badge.svg)
 ![profile Build](https://github.com/martelkr/cppsocket/actions/workflows/profile.yml/badge.svg)
+![cppcheck Build](https://github.com/martelkr/cppsocket/actions/workflows/cppcheck.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg)](https://coveralls.io/github/martelkr/cppsocket)
 
 ## About
@@ -127,7 +128,7 @@ UDPClient c("127.0.0.1", 54321); // add key file and cert file here for secure c
 
 ## Thread Safety
 
-Do not share TCPClient, UDPClient or UDPServer objects across threads unless you provide your own thread safety on the send/read calls.
+Do not share TCPServer, TCPClient, UDPClient or UDPServer objects across threads unless you provide your own thread safety on the send/read and accept calls.
 
 ## Installation
 
