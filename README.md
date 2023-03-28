@@ -3,7 +3,7 @@
 ![cmake Build](https://github.com/martelkr/cppsocket/actions/workflows/cmake.yml/badge.svg)
 ![clang Build](https://github.com/martelkr/cppsocket/actions/workflows/clang.yml/badge.svg)
 ![profile Build](https://github.com/martelkr/cppsocket/actions/workflows/profile.yml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg)](https://coveralls.io/github/martelkr/cppsocket)
+[![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg?branch=main)](https://coveralls.io/github/martelkr/cppsocket?branch=main)
 
 ## About
 This is a header file only implementation of a C++ client/server with or without SSL/TLS/DTLS.
