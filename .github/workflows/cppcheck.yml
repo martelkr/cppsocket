@@ -16,6 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: install cppcheck
+      run: sudo apt-get install cppcheck
+      
     - name: cppcheck hpp
       run: |
         cppcheck -v --bug-hunting --enable=all --language=c++ --platform=unix64 --std=c++20 inc/cppsocket.hpp
