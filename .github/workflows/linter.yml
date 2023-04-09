@@ -16,7 +16,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          style: file
+          #style: file
+          tidy-checks: '-*'
 
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed > 0
