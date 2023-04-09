@@ -1,10 +1,12 @@
 # C++ client/server with SSL/TLS support (header file only)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
-![cmake Build](https://github.com/martelkr/cppsocket/actions/workflows/cmake.yml/badge.svg)
+![Linux Build](https://github.com/martelkr/cppsocket/actions/workflows/linux.yml/badge.svg)
+![Windows Build](https://github.com/martelkr/cppsocket/actions/workflows/windows.yml/badge.svg)
 ![clang Build](https://github.com/martelkr/cppsocket/actions/workflows/clang.yml/badge.svg)
 ![profile Build](https://github.com/martelkr/cppsocket/actions/workflows/profile.yml/badge.svg)
 ![cppcheck Build](https://github.com/martelkr/cppsocket/actions/workflows/cppcheck.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg?branch=main)](https://coveralls.io/github/martelkr/cppsocket?branch=main)
+![cpp-linter](https://github.com/martelkr/cppsocket/actions/workflows/linter.yml/badge.svg)
 
 ## About
 This is a header file only implementation of a C++ client/server with or without SSL/TLS/DTLS.
@@ -140,10 +142,6 @@ Unit tests run with ctest:
 ```
 ctest -C debug
 ```
-
-## CppCheck Compliancy
-
-The C++ code of the Socket C++ API classes is Cppcheck compliant.
 
 ## Contribute
 All contributions are highly appreciated.

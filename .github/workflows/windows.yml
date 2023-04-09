@@ -1,4 +1,4 @@
-name: cmake
+name: Windows
 
 on:
   push:
@@ -11,29 +11,6 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  Linux:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Install gtest
-      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
-
-    - name: Write files
-      env: 
-        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
-        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
-      run: |
-        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
-        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
-
-    - name: Build and test
-      run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-          ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
-
   Windows:
     runs-on: windows-latest
 
