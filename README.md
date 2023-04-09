@@ -142,9 +142,5 @@ Unit tests run with ctest:
 ctest -C debug
 ```
 
-## CppCheck Compliancy
-
-The C++ code of the Socket C++ API classes is Cppcheck compliant.
-
 ## Contribute
 All contributions are highly appreciated.
