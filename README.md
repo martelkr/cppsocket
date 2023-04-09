@@ -5,6 +5,7 @@
 ![profile Build](https://github.com/martelkr/cppsocket/actions/workflows/profile.yml/badge.svg)
 ![cppcheck Build](https://github.com/martelkr/cppsocket/actions/workflows/cppcheck.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg?branch=main)](https://coveralls.io/github/martelkr/cppsocket?branch=main)
+![cpp-linter](https://github.com/martelkr/cppsocket/actions/workflows/linter.yml/badge.svg)
 
 ## About
 This is a header file only implementation of a C++ client/server with or without SSL/TLS/DTLS.
