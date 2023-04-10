@@ -26,7 +26,7 @@ jobs:
         force_language: c++
         std: c++20
         platform: unix64
-        other_options: --bug-hunting -I inc
+        other_options: --bug-hunting -I inc --verbose
       
     - name: publish report    
       uses: mikeal/publish-to-github-action@master
