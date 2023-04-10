@@ -170,7 +170,8 @@ TEST(TCP, Secure)
 
         std::cout << "Server accepted" << std::endl;
 
-        char buffer[TEST_STRING1.length() + 1] = {};
+        char buffer[TEST_STRING1.length() + 1];
+        buffer[0] = '\0';
         auto ret = c.read(buffer, sizeof(buffer));
         if (ret != static_cast<int>(TEST_STRING1.length()))
         {
@@ -237,7 +238,8 @@ TEST(UDP, SecureTest)
             return;
         }
 
-        char buffer[TEST_STRING1.length() + 1] = {};
+        char buffer[TEST_STRING1.length() + 1];
+        buffer[0] = '\0';
         auto ret = s.read(buffer, sizeof(buffer));
         ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
