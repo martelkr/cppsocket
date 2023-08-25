@@ -2,6 +2,9 @@ name: cppcheck
 
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 env:
   BUILD_TYPE: Release
@@ -21,11 +24,7 @@ jobs:
         force_language: c++
         std: c++20
         platform: unix64
-<<<<<<< HEAD
         other_options: --bug-hunting -I inc/ --verbose --suppress=missingIncludeSystem --enable=warning
-=======
-        other_options: --bug-hunting -I inc --verbose --enable=warning
->>>>>>> origin/main
       
     - name: publish report    
       uses: mikeal/publish-to-github-action@master
