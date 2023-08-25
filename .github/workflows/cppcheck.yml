@@ -2,11 +2,6 @@ name: cppcheck
 
 on:
   push:
-    branches: [ "main" ]
-  # this currently does not work on pull requests
-  # https://github.com/deep5050/cppcheck-action/issues/48
-  #pull_request:
-  #  branches: [ "main" ]
 
 env:
   BUILD_TYPE: Release
@@ -26,7 +21,7 @@ jobs:
         force_language: c++
         std: c++20
         platform: unix64
-        other_options: --bug-hunting -I inc --verbose --enable=warning
+        other_options: --bug-hunting -I inc/ --verbose --suppress=missingIncludeSystem --enable=warning
       
     - name: publish report    
       uses: mikeal/publish-to-github-action@master

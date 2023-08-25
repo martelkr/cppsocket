@@ -157,7 +157,7 @@ namespace com
          * @return true Windows sockets are ready
          * @return false Windows sockets not ready yet
          */
-        bool WinsockInitialized(void) noexcept
+        bool WinsockInitialized() noexcept
         {
             SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
             if (s == INVALID_SOCKET) 
@@ -173,6 +173,8 @@ namespace com
         class TCPClient
         {
         public:
+
+            TCPClient& operator=(TCPClient&&) = default;
 
             /**
              * @brief Construct a new TCPClient object for normal or SSL/TLS connections
@@ -288,7 +290,7 @@ namespace com
                 }
             }
 
-            virtual ~TCPClient(void)
+            virtual ~TCPClient()
             {
 #ifdef LINUX
                 static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
@@ -372,14 +374,13 @@ namespace com
             SSL_CTX* m_sslctx;
             
             TCPClient& operator=(TCPClient&) = delete;
-            TCPClient& operator=(TCPClient&&) = delete;
             TCPClient(TCPClient&) = delete;
 
             /**
              * @brief Initialize the TCP client to not use the Nagle algorithm
              * 
              */
-            void init(void) const noexcept(false)
+            void init() const noexcept(false)
             {
                 int flag = 1;
 #ifdef LINUX
@@ -401,7 +402,7 @@ namespace com
              * @brief Construct a new TCPServer object
              * 
              */
-            TCPServer(void) noexcept(false)
+            TCPServer() noexcept(false)
                 : TCPServer("", "")
             {
             }
@@ -491,7 +492,7 @@ namespace com
                 bindAndListen(port, ip, backlog);
             }
 
-            virtual ~TCPServer(void)
+            virtual ~TCPServer()
             {
 #ifdef LINUX
                 static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
@@ -512,7 +513,7 @@ namespace com
              * 
              * @return TCPClient Newly accepted TCP connection
              */
-            [[nodiscard]] TCPClient accept(void) noexcept(false)
+            [[nodiscard]] TCPClient accept() noexcept(false)
             {
                 sockaddr_in client = {};
                 socklen_t clientLen = sizeof(client);
@@ -608,7 +609,7 @@ namespace com
              * @brief Initialize the TCP server for IP and port reusability 
              * 
              */
-            void init(void) const noexcept(false)
+            void init() const noexcept(false)
             {
                 int opt = 1;
 #ifdef LINUX
@@ -630,7 +631,7 @@ namespace com
              * @brief UDPClient default constructor
              * 
              */
-            UDPClient(void) noexcept(false)
+            UDPClient() noexcept(false)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -711,7 +712,7 @@ namespace com
                 }
             }
 
-            virtual ~UDPClient(void)
+            virtual ~UDPClient()
             {
 #ifdef LINUX
                 static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
@@ -754,7 +755,7 @@ namespace com
              * @return true UDP connection successful
              * @return false UDP connection unsuccessful
              */
-            [[nodiscard]] bool connect(void) noexcept
+            [[nodiscard]] bool connect() noexcept
             {
                 auto ret = ::connect(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 
@@ -862,7 +863,7 @@ namespace com
              * @brief Initialize the UDP client
              * 
              */
-            void init(void) noexcept(false)
+            void init() noexcept(false)
             {
 #ifdef WINDOWS
                 {
@@ -1043,7 +1044,7 @@ namespace com
                 }
             }
 
-            virtual ~UDPServer(void)
+            virtual ~UDPServer()
             {
 #ifdef LINUX
                 static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
@@ -1070,7 +1071,7 @@ namespace com
              * NOTE: Unsecure does nothing and this call is not needed
              * 
              */
-            void accept(void) noexcept
+            void accept() noexcept
             {
                 if (m_certFile.length() > 0 && m_keyFile.length() > 0)
                 {

@@ -1,0 +1,3 @@
+Checks: >
+  readability-*,performance-*,misc-*,concurrency-*,clang-analyzer-*,bug-prone-*,modernize-*
+

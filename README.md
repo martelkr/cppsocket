@@ -28,7 +28,7 @@ Create a TCP server object for accepting TCP connections.
 
 ```cpp
 // default no SSL and not IP/port bound
-TCPServer(void); 
+TCPServer(); 
 
 // default SSL and not IP/port bound
 TCPServer(const std::string& keyFile, const std::string& certFile); 
@@ -74,7 +74,7 @@ Create a UDP server object for accepting UDP connections.
 
 ```cpp
 // default constructor creates unbound unsecure UDP server socket
-UDPServer(void);
+UDPServer();
 
 // default DTLS constructor create unbound UDP server socket ready for DTLS
 // NOTE: UDPServer s("", ""); results in unbound unsecure UDP server socket
@@ -93,7 +93,7 @@ Create a UDP client object to connect to a known UDP server.
 ```cpp
 
 // default constructor creates unconnected UDP client socket
-UDPClient(void);
+UDPClient();
 
 // creates UDP client socket connected to UDP server
 UDPClient(const std::string& remoteIp, const uint16_t remotePort);

@@ -47,3 +47,4 @@ bin
 test/testcppsocket.dir
 CTestTestfile.cmake
 Testing
+build
