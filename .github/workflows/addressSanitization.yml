@@ -10,7 +10,7 @@ env:
   BUILD_TYPE: Debug
 
 jobs:
-  Coverage:
+  ASAN:
     runs-on: ubuntu-latest
 
     steps:
