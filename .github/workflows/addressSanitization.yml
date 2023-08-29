@@ -27,18 +27,8 @@ jobs:
         echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
-    - name: Coverage configure
-      run: cmake -DCMAKE_BUILD_TYPE=ASAN .
-
-    - name: Coverage build
-      run: cmake --build . --config ASAN
-
-    - name: Coverage test
-      run: ctest -VV -C ${{env.BUILD_TYPE}}
-
-    - name: Generate Test Report
-      uses: threeal/gcovr-action@latest
-      with:
-        coveralls-send: true
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-  
+    - name: Build and test
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=ASAN .
+        cmake --build . --config ASAN
+        ctest -VV -C ${{env.BUILD_TYPE}}  
