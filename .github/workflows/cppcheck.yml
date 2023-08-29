@@ -15,7 +15,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: cppcheck
-      uses: chmorgan/cppcheck-action-jackson@main
+      uses: deep5050/cppcheck-action@main
       with:
         github_token: ${{ secrets.GITHUB_TOKEN}}
         enable: all
