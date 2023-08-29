@@ -32,6 +32,7 @@ using com::socket::TCPClient;
 using com::socket::UDPServer;
 using com::socket::UDPClient;
 
+constexpr int BUFFER_LEN = 100;
 constexpr int TCP_TEST1_SERVER_PORT = 54321;
 constexpr int TCP_TEST2_SERVER_PORT = 54322;
 constexpr int UDP_TEST1_SERVER_PORT = 54323;
@@ -40,8 +41,8 @@ static const std::string IP_ADDR("127.0.0.1");
 static const std::string TEST_STRING1("This is my testing string 1.");
 static const std::string TEST_STRING2("This is my testing string 2.");
 
-static void tcpSslClient(void);
-static void udpSslClient(void);
+static void tcpSslClient();
+static void udpSslClient();
 
 TEST(TCP, Unsecure)
 {
@@ -58,15 +59,15 @@ TEST(TCP, Unsecure)
 
         std::cout << "Client sent: " << TEST_STRING1 << std::endl;
 
-        char buffer[100];
-        ret = c.read(buffer, sizeof(buffer));
+        std::array<char, BUFFER_LEN> buffer = {};
+        ret = c.read(buffer.data(), buffer.size());
         ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
         buffer[ret] = '\0';
 
-        std::cout << "Client received: " << buffer << std::endl;
+        std::cout << "Client received: " << buffer.data() << std::endl;
 
-        ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+        ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
     });
     static_cast<void>(t);
 
@@ -75,15 +76,15 @@ TEST(TCP, Unsecure)
 
     std::cout << "Server accepted" << std::endl;
 
-    char buffer[100];
-    auto ret = c.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = c.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Server received: " << buffer << std::endl;
+    std::cout << "Server received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     ret = c.send(TEST_STRING2.c_str(), TEST_STRING2.length());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
@@ -111,15 +112,15 @@ TEST(UDP, UnsecureTest)
 
         std::cout << "Client sent: " << TEST_STRING1 << std::endl;
 
-        char buffer[100];
-        ret = c.read(buffer, sizeof(buffer));
+        std::array<char, BUFFER_LEN> buffer = {};
+        ret = c.read(buffer.data(), buffer.size());
         ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
         buffer[ret] = '\0';
 
-        std::cout << "Client received: " << buffer << std::endl;
+        std::cout << "Client received: " << buffer.data() << std::endl;
 
-        ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+        ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
     });
 
     std::cout << "Accepting" << std::endl;
@@ -129,15 +130,15 @@ TEST(UDP, UnsecureTest)
     // wait for client to start
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    char buffer[100];
-    auto ret = s.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = s.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Server received: " << buffer << std::endl;
+    std::cout << "Server received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data(), 0);
 
     ret = s.send(TEST_STRING2.c_str(), TEST_STRING2.length());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
@@ -170,8 +171,8 @@ TEST(TCP, Secure)
 
         std::cout << "Server accepted" << std::endl;
 
-        char buffer[TEST_STRING1.length() + 1];
-        auto ret = c.read(buffer, sizeof(buffer));
+        std::array<char, BUFFER_LEN> buffer = {};
+        auto ret = c.read(buffer.data(), buffer.size());
         if (ret != static_cast<int>(TEST_STRING1.length()))
         {
             assert(false);
@@ -179,9 +180,9 @@ TEST(TCP, Secure)
 
         buffer[ret] = '\0';
 
-        std::cout << "Server received: " << buffer << std::endl;
+        std::cout << "Server received: " << buffer.data() << std::endl;
 
-        ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+        ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
         std::cout << "Received correct data!" << std::endl;
 
@@ -237,15 +238,15 @@ TEST(UDP, SecureTest)
             return;
         }
 
-        char buffer[TEST_STRING1.length() + 1];
-        auto ret = s.read(buffer, sizeof(buffer));
+        std::array<char, BUFFER_LEN> buffer = {};
+        auto ret = s.read(buffer.data(), buffer.size());
         ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
         buffer[ret] = '\0';
 
-        std::cout << "Server received: " << buffer << std::endl;
+        std::cout << "Server received: " << buffer.data() << std::endl;
 
-        ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+        ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
         std::cout << "Received correct data!" << std::endl;
 
@@ -306,15 +307,15 @@ TEST(TCP, Secure_Test)
 
     std::cout << "Server accepted" << std::endl;
 
-    char buffer[100];
-    auto ret = c.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = c.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Server received: " << buffer << std::endl;
+    std::cout << "Server received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     std::cout << "Received correct data!" << std::endl;
 
@@ -353,15 +354,15 @@ TEST(UDP, Secure_Test)
 
     std::cout << "Accepted!" << std::endl;
 
-    char buffer[100];
-    auto ret = s.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = s.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Server received: " << buffer << std::endl;
+    std::cout << "Server received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING1.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     std::cout << "Received correct data!" << std::endl;
 
@@ -412,7 +413,7 @@ auto main(int argc, char *argv[]) -> int
 }
 #endif
 
-static void tcpSslClient(void)
+static void tcpSslClient()
 {
     TCPClient c(IP_ADDR, TCP_TEST2_SERVER_PORT, true);
 
@@ -425,20 +426,20 @@ static void tcpSslClient(void)
 
     std::cout << "Client sent: " << TEST_STRING1 << std::endl;
 
-    char buffer[100];
-    ret = c.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    ret = c.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Client received: " << buffer << std::endl;
+    std::cout << "Client received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
 
     std::cout << "Received correct data!" << std::endl;
 }
 
-static void udpSslClient(void)
+static void udpSslClient()
 {
     // wait for server to start accepting
     UDPClient c(IP_ADDR, UDP_TEST2_SERVER_PORT, KEY_FILE, CERT_FILE);
@@ -452,15 +453,15 @@ static void udpSslClient(void)
 
     std::cout << "Client sent: " << TEST_STRING1 << std::endl;
 
-    char buffer[100];
-    ret = c.read(buffer, sizeof(buffer));
+    std::array<char, BUFFER_LEN> buffer = {};
+    ret = c.read(buffer.data(), buffer.size());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
     buffer[ret] = '\0';
 
-    std::cout << "Client received: " << buffer << std::endl;
+    std::cout << "Client received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING2.compare(buffer), 0);
+    ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
 
     std::cout << "Received correct data!" << std::endl;
 }
