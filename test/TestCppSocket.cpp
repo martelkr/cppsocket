@@ -3,8 +3,8 @@
 
 #include <thread>
 #include <iostream>
-#include <assert.h>
 #include <sys/types.h>
+#include <array>
 
 #ifdef LINUX
 #include <unistd.h>
@@ -138,7 +138,7 @@ TEST(UDP, UnsecureTest)
 
     std::cout << "Server received: " << buffer.data() << std::endl;
 
-    ASSERT_EQ(TEST_STRING1.compare(buffer.data(), 0);
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     ret = s.send(TEST_STRING2.c_str(), TEST_STRING2.length());
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
