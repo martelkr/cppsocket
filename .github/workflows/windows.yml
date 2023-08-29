@@ -28,19 +28,22 @@ jobs:
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
 
-    - name: Clone openssl
-      uses: actions/checkout@v3
-      with:
-        repository: openssl/openssl
-        path: D:/a/cppsocket/cppsocket/openssl
-        ref: openssl-3.1.0
+    #- name: Clone openssl
+    #  uses: actions/checkout@v3
+    #  with:
+    #    repository: openssl/openssl
+    #    path: D:/a/cppsocket/cppsocket/openssl
+    #    ref: openssl-3.1.0
 
-    - name: Build and install OpenSSL
-      working-directory: D:/a/cppsocket/cppsocket/openssl
-      run: |
-          perl Configure VC-WIN64A
-          nmake
-          nmake install
+    #- name: Build and install OpenSSL
+    #  working-directory: D:/a/cppsocket/cppsocket/openssl
+    #  run: |
+    #      perl Configure VC-WIN64A
+    #      nmake
+    #      nmake install
+
+    - name: Install OpenSSL
+      run: choco install openssl
 
     - name: Install gtest
       uses: MarkusJx/googletest-installer@v1.1.1
