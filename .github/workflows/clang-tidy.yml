@@ -6,21 +6,18 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   ClangTidy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Process clang-tidy warnings
-      uses: asarium/clang-tidy-action@v1
+    - uses: actions/checkout@v2
+    - name: Run clang-tidy
+      uses: HorstBaerbel/action-clang-tidy@1.2
+      # These are optional (defaults displayed)
       with:
-        fixesFile: clang-fixes.yaml
-
-    - name: Output Clang-tidy finds
-      run: cat clang-fixes.yaml
+        scandir: '.'
+        builddir: 'build'
+        excludedirs: ''
+        extensions: 'c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx'
+        cmakeoptions: ''
