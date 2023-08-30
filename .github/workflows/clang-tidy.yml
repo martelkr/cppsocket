@@ -1,4 +1,4 @@
-name: Clang-tidy
+name: clang-tidy
 
 on:
   push:
@@ -16,9 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - uses: asarium/clang-tidy-action@v1
 
     - name: Process clang-tidy warnings
-      uses: asarium/clang-tidy-action@v1
       with:
         fixesFile: clang-fixes.yaml
       run: cat clang-fixes.yaml
