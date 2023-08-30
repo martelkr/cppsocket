@@ -1,0 +1,24 @@
+name: Clang-tidy
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  ClangTidy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Process clang-tidy warnings
+      uses: asarium/clang-tidy-action@v1
+      with:
+        fixesFile: clang-fixes.yaml
+      run: cat clang-fixes.yaml
