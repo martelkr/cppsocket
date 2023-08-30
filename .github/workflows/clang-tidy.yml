@@ -16,9 +16,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: asarium/clang-tidy-action@v1
 
     - name: Process clang-tidy warnings
+      uses: asarium/clang-tidy-action@v1
       with:
         fixesFile: clang-fixes.yaml
+
+    - name: Output Clang-tidy finds
       run: cat clang-fixes.yaml
