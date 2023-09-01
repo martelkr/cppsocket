@@ -54,19 +54,19 @@ For a BSD-like approach, the following sequence can be followed:
 // Server
 
 // create server socket
-TCPServer s; // add key file and cert file here for secure connection
+TCPServer server; // add key file and cert file here for secure connection
 
 // bind to port 54321 on IP 0.0.0.0
-s.bindAndListen(54321); 
+server.bindAndListen(54321); 
 
-TCPClient c = s.accept();
+TCPClient client = server.accept();
 ```
 
 ```cpp
 // Client
 
 // Connect to TCP server on IP 127.0.0.1 and port 54321
-TCPClient c("127.0.0.1", 54321); // add key file and cert file here for secure connection
+TCPClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
 ```
 
 ### UDP server/client
@@ -112,20 +112,20 @@ For a BSD-like approach, the following sequence can be followed:
 // Server
 
 // create server socket
-UDPServer s; // add key file and cert file here for secure connection
+UDPServer server; // add key file and cert file here for secure connection
 
 // bind to port 54321 on IP 0.0.0.0
-s.bind(54321); 
+server.bind(54321); 
 
 // following not needed for unsecure connection but is needed for DTLS connection
-s.accept();
+server.accept();
 ```
 
 ```cpp
 // Client
 
 // Connect to UDP server on IP 127.0.0.1 and port 54321
-UDPClient c("127.0.0.1", 54321); // add key file and cert file here for secure connection
+UDPClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
 ```
 
 ## Thread Safety
