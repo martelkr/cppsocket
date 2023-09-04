@@ -96,6 +96,11 @@ TEST(TCP, Unsecure)
     std::cout << "********************** TCP Test 1 PASSED *******************" << std::endl;
 }
 
+TEST(TCP, Coverage)
+{
+    TCPServer server(TCP_TEST1_SERVER_PORT, IP_ADDR, KEY_FILE, CERT_FILE);
+}
+
 TEST(UDP, UnsecureTest)
 {
     std::cout << "Start UDP Test 1" << std::endl;
@@ -148,6 +153,11 @@ TEST(UDP, UnsecureTest)
     t.join();
 
     std::cout << "********************** UDP Test 1 PASSED *******************" << std::endl;
+}
+
+TEST(UDP, Coverage) 
+{ 
+    UDPServer server(KEY_FILE, CERT_FILE);
 }
 
 #ifdef LINUX

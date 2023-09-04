@@ -185,7 +185,7 @@ namespace com
 #ifdef LINUX
             explicit TCPClient(const int fd, SSL_CTX* sslctx = nullptr) noexcept(false)
 #else
-          explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr) noexcept(false)
+            explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr) noexcept(false)
 #endif
                 : m_sockFd(fd)
 #ifdef WINDOWS
