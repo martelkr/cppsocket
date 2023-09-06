@@ -7,6 +7,9 @@
 ![cppcheck Build](https://github.com/martelkr/cppsocket/actions/workflows/cppcheck.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/martelkr/cppsocket/badge.svg?branch=main)](https://coveralls.io/github/martelkr/cppsocket?branch=main)
 ![cpp-linter](https://github.com/martelkr/cppsocket/actions/workflows/linter.yml/badge.svg)
+![Address Sanitization](https://github.com/martelkr/cppsocket/actions/workflows/addressSanitization.yml/badge.svg)
+![Code QL](https://github.com/martelkr/cppsocket/actions/workflows/codeql.yml/badge.svg)
+![Clang Tidy](https://github.com/martelkr/cppsocket/actions/workflows/clang-tidy.yml/badge.svg)
 
 ## About
 This is a header file only implementation of a C++ client/server with or without SSL/TLS/DTLS.
@@ -29,7 +32,7 @@ Create a TCP server object for accepting TCP connections.
 
 ```cpp
 // default no SSL and not IP/port bound
-TCPServer(); 
+TCPServer(void); 
 
 // default SSL and not IP/port bound
 TCPServer(const std::string& keyFile, const std::string& certFile); 
@@ -75,7 +78,7 @@ Create a UDP server object for accepting UDP connections.
 
 ```cpp
 // default constructor creates unbound unsecure UDP server socket
-UDPServer();
+UDPServer(void);
 
 // default DTLS constructor create unbound UDP server socket ready for DTLS
 // NOTE: UDPServer s("", ""); results in unbound unsecure UDP server socket
@@ -94,7 +97,7 @@ Create a UDP client object to connect to a known UDP server.
 ```cpp
 
 // default constructor creates unconnected UDP client socket
-UDPClient();
+UDPClient(void);
 
 // creates UDP client socket connected to UDP server
 UDPClient(const std::string& remoteIp, const uint16_t remotePort);

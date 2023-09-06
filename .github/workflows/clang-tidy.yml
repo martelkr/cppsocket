@@ -1,0 +1,35 @@
+name: clang-tidy
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  ClangTidy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ssrobins/install-cmake@v1
+
+    - name: Install Openssl
+      run: sudo apt-get install -y openssl clang-tidy
+
+    - name: Install gtest
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Write files
+      env: 
+        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
+      run: |
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
+
+    - name: Run clang-tidy
+      run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON |
+          clang-tidy -p ${{github.workspace}}/build inc/cppsocket.hpp
+        

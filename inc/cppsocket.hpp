@@ -39,7 +39,9 @@ using size_t = SIZE_T;
 namespace
 {
     constexpr unsigned int COOKIE_LEN = 16;
-    static unsigned char gcookie[COOKIE_LEN] = {};
+    std::array<unsigned char, COOKIE_LEN> gcookie = {};
+    constexpr unsigned int ONE_HUNDRED_MILLISEC = 100;
+    constexpr unsigned int FIVE_SECONDS = 5;
 
     /**
      * @brief Initialize a sockaddr_in structure
@@ -48,16 +50,16 @@ namespace
      * @param ip IP address to use
      * @param addr sockaddr_in structure to populate
      */
-    void initAddr(const int port, const std::string& ip, sockaddr_in& addr) noexcept(false)
+    void initAddr(const int port, const std::string& ipAddr, sockaddr_in& addr) noexcept(false)
     {
         addr.sin_family = AF_INET;
-        if (ip.empty() || ip.compare("0.0.0.0") == 0)
+        if (ipAddr.empty() || ipAddr.compare("0.0.0.0") == 0)
         {
             addr.sin_addr.s_addr = INADDR_ANY;
         }
         else
         {
-            if (::inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) <= 0)
+            if (::inet_pton(AF_INET, ipAddr.c_str(), &addr.sin_addr) <= 0)
             {
                 throw std::runtime_error("Failed to parse IP address");
             }
@@ -74,9 +76,9 @@ namespace
      * 
      * @return int 1 for success
      */
-    static int genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len) noexcept
+    auto genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len) noexcept -> int
     {
-        ::srand(time(nullptr));
+        std::srand(std::time(nullptr));
 
         for (unsigned int i = 0; i < COOKIE_LEN; ++i)
         {
@@ -86,15 +88,15 @@ namespace
         const auto length = sizeof(in_addr) + sizeof(uint16_t);
         sockaddr_in addr;
         static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
-        unsigned char buffer[length];
+        std::array<unsigned char, length> buffer = {};
 
-        ::memcpy(buffer, &addr.sin_port, sizeof(uint16_t));
-        ::memcpy(buffer + sizeof(addr.sin_port), &addr.sin_addr, sizeof(in_addr));
+        ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
+        ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
 
-        unsigned char result[EVP_MAX_MD_SIZE];
+        std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
         unsigned int resLen = 0;
-        HMAC(EVP_sha1(), gcookie, COOKIE_LEN, buffer, length, result, &resLen);
-        ::memcpy(cookie, result, resLen);
+        HMAC(EVP_sha1(), gcookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
+        ::memcpy(cookie, result.data(), resLen);
         *len = resLen;
         return 1;
     }
@@ -108,21 +110,21 @@ namespace
      * 
      * @return int 1 for valid cookie, 0 for invalid
      */
-    static int verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len) noexcept
+    auto verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len) noexcept -> int
     {
         sockaddr_in addr;
         static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
 
         const auto length = sizeof(in_addr) + sizeof(uint16_t);
-        unsigned char buffer[length];
+        std::array<unsigned char, length> buffer = {};
 
-        ::memcpy(buffer, &addr.sin_port, sizeof(uint16_t));
-        ::memcpy(buffer + sizeof(addr.sin_port), &addr.sin_addr, sizeof(in_addr));
-        unsigned char result[EVP_MAX_MD_SIZE];
+        ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
+        ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
+        std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
         unsigned int resLen = 0;
-        HMAC(EVP_sha1(), gcookie, COOKIE_LEN, buffer, length, result, &resLen);
+        HMAC(EVP_sha1(), gcookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
 
-        if ((len == resLen) && (::memcmp(result, cookie, resLen) == 0))
+        if ((len == resLen) && (::memcmp(result.data(), cookie, resLen) == 0))
         {
             return 1;
         }
@@ -135,7 +137,7 @@ namespace
      * 
      * @return int 1 for good callback
      */
-    static int verifyCallback (int val, X509_STORE_CTX *ctx) noexcept
+    auto verifyCallback (int val, X509_STORE_CTX *ctx) noexcept -> int
     {
         static_cast<void>(val);
         static_cast<void>(ctx);
@@ -175,19 +177,21 @@ namespace com
         public:
 
             TCPClient& operator=(TCPClient&&) = default;
+            TCPClient& operator=(TCPClient&) = delete;
+            TCPClient(TCPClient&) = delete;
 
             /**
              * @brief Construct a new TCPClient object for normal or SSL/TLS connections
              * 
-             * @param fd Previously created socket file descriptor
+             * @param filedescriptor Previously created socket file descriptor
              * @param sslctx Previously created SSL context or default null pointer for non secure connection
              */
 #ifdef LINUX
-            explicit TCPClient(const int fd, SSL_CTX* sslctx = nullptr) noexcept(false)
+            explicit TCPClient(const int filedescriptor, SSL_CTX* sslctx = nullptr) noexcept(false)
 #else
-          explicit TCPClient(SOCKET fd, SSL_CTX *sslctx = nullptr) noexcept(false)
+            explicit TCPClient(SOCKET filedescriptor, SSL_CTX *sslctx = nullptr) noexcept(false)
 #endif
-                : m_sockFd(fd)
+                : m_sockFd(filedescriptor)
 #ifdef WINDOWS
                 , m_wsaData()
 #endif
@@ -220,7 +224,7 @@ namespace com
              * @param port Port of the TCP server
              * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
              */
-            TCPClient(const std::string &ip, const uint16_t port, const bool ssl = false) noexcept(false)
+            TCPClient(const std::string &ipAddr, const uint16_t port, const bool ssl = false) noexcept(false)
                 : m_sockFd(-1)
 #ifdef WINDOWS
                 , m_wsaData()
@@ -240,7 +244,7 @@ namespace com
                     }
                 }
 #endif
-                if (ip.empty())
+                if (ipAddr.empty())
                 {
                     throw std::runtime_error("IP address is empty! Cannot connect to empty server!");
                 }
@@ -248,9 +252,9 @@ namespace com
                 if (ssl)
                 {
                     OpenSSL_add_ssl_algorithms();
-                    auto* m = SSLv23_client_method();
+                    const auto* method = SSLv23_client_method();
                     SSL_load_error_strings();
-                    m_sslctx = SSL_CTX_new(m);
+                    m_sslctx = SSL_CTX_new(method);
                 }
 
                 m_sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -266,7 +270,7 @@ namespace com
                 init();
 
                 sockaddr_in addr = {};
-                initAddr(port, ip, addr);
+                initAddr(port, ipAddr, addr);
 
                 auto ret = ::connect(m_sockFd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
 #ifdef LINUX
@@ -300,12 +304,12 @@ namespace com
                 static_cast<void>(::closesocket(m_sockFd));
 #endif
 
-                if (m_cSSL)
+                if (m_cSSL != nullptr)
                 {
                     SSL_shutdown(m_cSSL);
                     SSL_free(m_cSSL);
                 }
-                if (m_sslctx)
+                if (m_sslctx != nullptr)
                 {
                     SSL_CTX_free(m_sslctx);
                 }
@@ -318,21 +322,24 @@ namespace com
              * @param len Length of the receive buffer
              * @return ssize_t The length of data received
              */
-            [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
+            [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_read(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval = SSL_read(m_cSSL, buffer, length);
                 }
                 else
                 {
 #ifdef LINUX
-                    return ::read(m_sockFd, buffer, len);
+                    retval = ::read(m_sockFd, buffer, len);
 #else
-                    return ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
+                    retval ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
 #endif
                 }
+
+                return retval;
             }
 
             /**
@@ -342,21 +349,24 @@ namespace com
              * @param len Length of the data to send
              * @return ssize_t Length of data sent on the socket
              */
-            [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
+            [[nodiscard]] auto send(const void* buffer, size_t len) noexcept -> ssize_t
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_write(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval = SSL_write(m_cSSL, buffer, length);
                 }
                 else
                 {
 #ifdef LINUX
-                    return ::send(m_sockFd, buffer, len, 0);
+                    retval = ::send(m_sockFd, buffer, len, 0);
 #else
-                    return ::send(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0);
+                    retval = ::send(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0);
 #endif
                 }
+
+                return retval;
             }
 
         protected:
@@ -373,9 +383,6 @@ namespace com
             /// @brief SSL/TLS context
             SSL_CTX* m_sslctx;
             
-            TCPClient& operator=(TCPClient&) = delete;
-            TCPClient(TCPClient&) = delete;
-
             /**
              * @brief Initialize the TCP client to not use the Nagle algorithm
              * 
@@ -397,6 +404,10 @@ namespace com
         class TCPServer
         {
         public:
+
+            TCPServer& operator=(TCPServer&) = delete;
+            TCPServer& operator=(TCPServer&&) = delete;
+            TCPServer(TCPServer&) = delete;
 
             /**
              * @brief Construct a new TCPServer object
@@ -442,8 +453,8 @@ namespace com
                 {
                     SSL_load_error_strings();
                     OpenSSL_add_all_algorithms();
-                    auto* m = SSLv23_server_method();
-                    m_sslctx = SSL_CTX_new(m);
+                    const auto* method = SSLv23_server_method();
+                    m_sslctx = SSL_CTX_new(method);
                     if (m_sslctx == nullptr)
                     {
                         ERR_print_errors_fp(stderr);
@@ -468,13 +479,13 @@ namespace com
              * @brief Construct a new unsecure TCPServer object
              * 
              * @param port Port on which to bind TCP server
-             * @param ip IP address on which to bind TCP server
+             * @param ipAddr IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            explicit TCPServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3) noexcept(false)
+            explicit TCPServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0", const int backlog = 3) noexcept(false)
                 : TCPServer()
             {
-                bindAndListen(port, ip, backlog);
+                bindAndListen(port, ipAddr, backlog);
             }
 
             /**
@@ -556,9 +567,9 @@ namespace com
              * @param ip IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            void bindAndListen(const uint16_t port, const std::string& ip = "", const int backlog = 3) noexcept(false)
+            void bindAndListen(const uint16_t port, const std::string& ipAddr = "", const int backlog = 3) noexcept(false)
             {
-                initAddr(port, ip, m_serverAddr);
+                initAddr(port, ipAddr, m_serverAddr);
 
                 auto ret = ::bind(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #ifdef LINUX
@@ -601,10 +612,6 @@ namespace com
             /// @brief Certificate file for key file
             const std::string m_certFile;
 
-            TCPServer& operator=(TCPServer&) = delete;
-            TCPServer& operator=(TCPServer&&) = delete;
-            TCPServer(TCPServer&) = delete;
-
             /**
              * @brief Initialize the TCP server for IP and port reusability 
              * 
@@ -626,6 +633,10 @@ namespace com
         class UDPClient
         {
         public:
+
+            UDPClient& operator=(UDPClient&) = delete;
+            UDPClient& operator=(UDPClient&&) = delete;
+            UDPClient(UDPClient&) = delete;
 
             /**
              * @brief UDPClient default constructor
@@ -650,13 +661,13 @@ namespace com
             /**
              * @brief Construct a new UDPClient object for normal or SSL/TLS connections
              * 
-             * @param ip IP address of the UDP server
+             * @param ipAddr IP address of the UDP server
              * @param port Port of the UDP server
              */
-            UDPClient(const std::string& ip, const uint16_t port) noexcept(false)
+            UDPClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
                 : UDPClient()
             {
-                if (!connect(ip, port))
+                if (!connect(ipAddr, port))
                 {
                     throw std::runtime_error("Failed to connect to server!");
                 }
@@ -687,12 +698,12 @@ namespace com
             /**
              * @brief Construct a DTLS UDPClient object
              * 
-             * @param ip IP address of the UDP server
+             * @param ipAddr IP address of the UDP server
              * @param port Port of the UDP server
              * @param keyFile SSL key file to use
              * @param certFile SSL certificate file to use
              */
-            UDPClient(const std::string& ip, const uint16_t port, const std::string& keyFile, const std::string& certFile) noexcept(false)
+            UDPClient(const std::string& ipAddr, const uint16_t port, const std::string& keyFile, const std::string& certFile) noexcept(false)
 #ifdef LINUX
                 : m_sockFd(-1)
 #else
@@ -706,7 +717,7 @@ namespace com
                 , m_certFile(certFile)
             {
                 init();
-                if (!connect(ip, port))
+                if (!connect(ipAddr, port))
                 {
                     throw std::runtime_error("Failed to connect SSL");
                 }
@@ -722,12 +733,12 @@ namespace com
                 static_cast<void>(::closesocket(m_sockFd));
 #endif
 
-                if (m_cSSL)
+                if (m_cSSL != nullptr)
                 {
                     SSL_shutdown(m_cSSL);
                     SSL_free(m_cSSL);
                 }
-                if (m_sslctx)
+                if (m_sslctx != nullptr)
                 {
                     SSL_CTX_free(m_sslctx);
                 }
@@ -742,7 +753,7 @@ namespace com
              * @return true UDP connection successful
              * @return false UDP connection unsuccessful
              */
-            [[nodiscard]] bool connect(const std::string& ip, const int port) noexcept(false)
+            [[nodiscard]] auto connect(const std::string& ip, const int port) noexcept(false) -> bool
             {
                 initAddr(port, ip, m_serverAddr);
 
@@ -791,20 +802,23 @@ namespace com
              */
             [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_read(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval = SSL_read(m_cSSL, buffer, length);
                 }
                 else
                 {
                     socklen_t socklen = sizeof(m_clientAddr);
 #ifdef LINUX
-                    return ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+                    retval = ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #else
-                    return ::recvfrom(m_sockFd, reinterpret_cast<char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
+                    retval = ::recvfrom(m_sockFd, reinterpret_cast<char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
 #endif
                 }
+
+                return retval;
             }
 
             /**
@@ -816,19 +830,22 @@ namespace com
              */
             [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_write(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval = SSL_write(m_cSSL, buffer, length);
                 }
                 else
                 {
 #ifdef LINUX
-                    return ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_serverAddr), sizeof(m_serverAddr));
+                    retval = ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_serverAddr), sizeof(m_serverAddr));
 #else
-                    return ::sendto(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
+                    retval = ::sendto(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #endif
                 }
+
+                return retval;
             }
 
         protected:
@@ -854,10 +871,6 @@ namespace com
             const std::string m_keyFile;
             /// @brief Certificate file for key file
             const std::string m_certFile;
-
-            UDPClient& operator=(UDPClient&) = delete;
-            UDPClient& operator=(UDPClient&&) = delete;
-            UDPClient(UDPClient&) = delete;
 
             /**
              * @brief Initialize the UDP client
@@ -922,6 +935,10 @@ namespace com
         class UDPServer
         {
         public:
+
+            UDPServer& operator=(UDPServer&) = delete;
+            UDPServer& operator=(UDPServer&&) = delete;
+            UDPServer(UDPServer&) = delete;
 
              /**
              * @brief Construct a new secure SSL/DLS UDPServer object
@@ -1012,32 +1029,32 @@ namespace com
              * @brief Construct a new unsecure UDPServer object
              * 
              * @param port Port on which to bind TCP server
-             * @param ip IP address on which to bind TCP server
+             * @param ipAddr IP address on which to bind TCP server
              */
-            explicit UDPServer(const uint16_t port, const std::string& ip = "0.0.0.0") noexcept(false)
+            explicit UDPServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
                 : UDPServer("", "")
             {
-                bind(port, ip);
+                bind(port, ipAddr);
             }
 
             /**
              * @brief Construct a new UDPServer object
              * 
              * @param port Port on which to bind UDP server
-             * @param ip IP address on which to bind UDP server
+             * @param ipAddr IP address on which to bind UDP server
              * @param keyFile Key file to use for communication
              * @param certFile Certifaction file for provided key
              */
-            UDPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile) noexcept(false)
+            UDPServer(const uint16_t port, const std::string& ipAddr, const std::string& keyFile, const std::string& certFile) noexcept(false)
                 : UDPServer(keyFile, certFile)
             {
-                bind(port, ip);
+                bind(port, ipAddr);
 
                 if (!m_keyFile.empty() && !m_certFile.empty())
                 {
                     m_bio = BIO_new_dgram(m_sockFd, BIO_NOCLOSE);
-                    timeval t{.tv_sec = 5, .tv_usec = 0};
-                    BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &t);
+                    timeval tval{.tv_sec = FIVE_SECONDS, .tv_usec = 0};
+                    BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &tval);
                     m_cSSL = SSL_new(m_sslctx);
                     SSL_set_bio(m_cSSL, m_bio, m_bio);
                     SSL_set_options(m_cSSL, SSL_OP_COOKIE_EXCHANGE);
@@ -1054,12 +1071,12 @@ namespace com
                 static_cast<void>(::closesocket(m_sockFd));
 #endif
 
-                if (m_cSSL)
+                if (m_cSSL != nullptr)
                 {
                     SSL_shutdown(m_cSSL);
                     SSL_free(m_cSSL);
                 }
-                if (m_sslctx)
+                if (m_sslctx != nullptr)
                 {
                     SSL_CTX_free(m_sslctx);
                 }
@@ -1080,7 +1097,7 @@ namespace com
                     {
                         ERR_print_errors_fp(stderr);
                         // wait a bit to allow other things to run
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(ONE_HUNDRED_MILLISEC));
                     }
 
                     SSL_accept(m_cSSL);
@@ -1095,22 +1112,25 @@ namespace com
              * 
              * @return ssize_t The length of data received
              */
-            [[nodiscard]] ssize_t read(void* buffer, size_t len) noexcept
+            [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_read(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval =  SSL_read(m_cSSL, buffer, length);
                 }
                 else
                 {
                     socklen_t socklen = sizeof(m_clientAddr);
 #ifdef LINUX
-                    return ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+                    retval =  ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #else
-                    return ::recvfrom(m_sockFd, reinterpret_cast<char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
+                    retval =  ::recvfrom(m_sockFd, reinterpret_cast<char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
 #endif
                 }
+
+                return retval;
             }
 
             /**
@@ -1121,32 +1141,35 @@ namespace com
              * 
              * @return ssize_t Length of data sent on the socket
              */
-            [[nodiscard]] ssize_t send(const void* buffer, size_t len) noexcept
+            [[nodiscard]] auto send(const void* buffer, size_t len) noexcept -> ssize_t
             {
-                if (m_cSSL)
+                auto retval = 0;
+                if (m_cSSL != nullptr)
                 {
-                    int l = static_cast<int>(len);
-                    return SSL_write(m_cSSL, buffer, l);
+                    int length = static_cast<int>(len);
+                    retval = SSL_write(m_cSSL, buffer, length);
                 }
                 else
                 {
 #ifdef LINUX
-                    return ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
+                    retval =  ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
 #else
-                    return ::sendto(m_sockFd, reinterpret_cast<const char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
+                    retval =  ::sendto(m_sockFd, reinterpret_cast<const char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
 #endif
                 }
+
+                return retval;
             }
 
             /**
              * @brief Bind on the port and IP interface
              * 
              * @param port Port on which to bind
-             * @param ip IP interface to use
+             * @param ipAddr IP interface to use
              */
-            void bind(const int port, const std::string& ip = "0.0.0.0") noexcept(false)
+            void bind(const int port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
             {
-                initAddr(port, ip, m_serverAddr);
+                initAddr(port, ipAddr, m_serverAddr);
 
                 auto ret = ::bind(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #ifdef LINUX
@@ -1182,10 +1205,6 @@ namespace com
             const std::string m_keyFile;
             /// @brief Certificate file for key file
             const std::string m_certFile;
-
-            UDPServer& operator=(UDPServer&) = delete;
-            UDPServer& operator=(UDPServer&&) = delete;
-            UDPServer(UDPServer&) = delete;
        };
     }
 }

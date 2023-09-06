@@ -1,3 +1,5 @@
 Checks: >
   readability-*,performance-*,misc-*,concurrency-*,clang-analyzer-*,bug-prone-*,modernize-*
 
+CheckOptions:  
+  - {key: readability-identifier-naming.TypeTemplateParameterIgnoredRegexp, value: expr-type}
