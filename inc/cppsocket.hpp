@@ -405,6 +405,10 @@ namespace com
         {
         public:
 
+            TCPServer& operator=(TCPServer&) = delete;
+            TCPServer& operator=(TCPServer&&) = delete;
+            TCPServer(TCPServer&) = delete;
+
             /**
              * @brief Construct a new TCPServer object
              * 
@@ -449,7 +453,7 @@ namespace com
                 {
                     SSL_load_error_strings();
                     OpenSSL_add_all_algorithms();
-                    auto* method = SSLv23_server_method();
+                    const auto* method = SSLv23_server_method();
                     m_sslctx = SSL_CTX_new(method);
                     if (m_sslctx == nullptr)
                     {
@@ -475,13 +479,13 @@ namespace com
              * @brief Construct a new unsecure TCPServer object
              * 
              * @param port Port on which to bind TCP server
-             * @param ip IP address on which to bind TCP server
+             * @param ipAddr IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            explicit TCPServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3) noexcept(false)
+            explicit TCPServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0", const int backlog = 3) noexcept(false)
                 : TCPServer()
             {
-                bindAndListen(port, ip, backlog);
+                bindAndListen(port, ipAddr, backlog);
             }
 
             /**
@@ -563,9 +567,9 @@ namespace com
              * @param ip IP address on which to bind TCP server
              * @param backlog Backlog for TCP accept calls
              */
-            void bindAndListen(const uint16_t port, const std::string& ip = "", const int backlog = 3) noexcept(false)
+            void bindAndListen(const uint16_t port, const std::string& ipAddr = "", const int backlog = 3) noexcept(false)
             {
-                initAddr(port, ip, m_serverAddr);
+                initAddr(port, ipAddr, m_serverAddr);
 
                 auto ret = ::bind(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #ifdef LINUX
@@ -607,10 +611,6 @@ namespace com
             const std::string m_keyFile;
             /// @brief Certificate file for key file
             const std::string m_certFile;
-
-            TCPServer& operator=(TCPServer&) = delete;
-            TCPServer& operator=(TCPServer&&) = delete;
-            TCPServer(TCPServer&) = delete;
 
             /**
              * @brief Initialize the TCP server for IP and port reusability 
