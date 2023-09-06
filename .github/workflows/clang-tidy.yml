@@ -15,7 +15,7 @@ jobs:
     - uses: ssrobins/install-cmake@v1
 
     - name: Install Openssl
-      run: sudo apt-get install openssl
+      run: sudo apt-get install -y openssl clang-tidy
 
     - name: Install gtest
       run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
@@ -29,11 +29,7 @@ jobs:
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
 
     - name: Run clang-tidy
-      uses: HorstBaerbel/action-clang-tidy@1.2
-      # These are optional (defaults displayed)
-      with:
-        scandir: '.'
-        builddir: 'build'
-        excludedirs: 'test'
-        extensions: 'c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx'
-        cmakeoptions: ''
+      run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON |
+          clang-tidy -p ${{github.workspace}}/build inc/cppsocket.hpp
+        
