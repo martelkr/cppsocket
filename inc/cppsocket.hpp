@@ -33,6 +33,7 @@ using size_t = SIZE_T;
 #include <mutex>
 #include <functional>
 #include <thread>
+#include <array>
 
 #include <iostream>
 
