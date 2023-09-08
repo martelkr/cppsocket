@@ -8,10 +8,10 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
+  BUILD_TYPE: 
 
 jobs:
-  Windows:
+  Windows-Debug:
     runs-on: windows-latest
 
     steps:
@@ -34,9 +34,34 @@ jobs:
 
     - name: Build
       run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build ${{github.workspace}}/build --config Debug
+          ctest -VV --test-dir ${{github.workspace}}/build -C Debug
 
-    - name: Test
-      run: ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
+  Windows-Release:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Write files
+      env: 
+        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
+      shell: bash
+      run: |
+        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
+        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
+
+    - name: Install OpenSSL
+      run: choco install openssl
+
+    - name: Install gtest
+      uses: MarkusJx/googletest-installer@v1.1.1
+
+    - name: Build
+      run: |
+          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build ${{github.workspace}}/build --config Release
+          ctest -VV --test-dir ${{github.workspace}}/build -C Release
   
