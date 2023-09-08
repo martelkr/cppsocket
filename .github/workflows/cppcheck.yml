@@ -3,9 +3,10 @@ name: cppcheck
 on:
   push:
     branches: [ "main" ]
-
-env:
-  BUILD_TYPE: Release
+    
+permissions:
+    actions: write
+    contents: write
 
 jobs:
   Linux-cppcheck:
