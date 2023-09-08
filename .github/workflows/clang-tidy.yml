@@ -30,6 +30,6 @@ jobs:
 
     - name: Run clang-tidy
       run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON |
-          clang-tidy -p ${{github.workspace}}/build inc/cppsocket.hpp
+          cmake -B ${{github.workspace}}/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          clang-tidy -p ${{github.workspace}}/build inc/cppsocket.hpp test/TestCppSocket.cpp
         
