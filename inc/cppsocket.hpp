@@ -338,7 +338,7 @@ namespace com::socket
 #ifdef LINUX
                 retval = ::read(m_sockFd, buffer, len);
 #else
-                retval ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
+                retval = ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
 #endif
             }
 
