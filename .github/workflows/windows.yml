@@ -32,9 +32,11 @@ jobs:
     - name: Install gtest
       uses: MarkusJx/googletest-installer@v1.1.1
 
-    - name: Build and Test
+    - name: Build
       run: |
           cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-          ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
+
+    - name: Test
+      run: ctest -VV --test-dir ${{github.workspace}}/build -C ${{env.BUILD_TYPE}}
   
