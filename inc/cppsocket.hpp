@@ -35,247 +35,420 @@ using size_t = SIZE_T;
 #include <thread>
 #include <array>
 
-#include <iostream>
-
-namespace
+namespace com::github::socket
 {
-    constexpr unsigned int COOKIE_LEN = 16; // NOLINT
-    std::array<unsigned char, COOKIE_LEN> gcookie = {}; // NOLINT
-    constexpr unsigned int ONE_HUNDRED_MILLISEC = 100; // NOLINT
-    constexpr unsigned int FIVE_SECONDS = 5; // NOLINT
-
-    /**
-     * @brief Initialize a sockaddr_in structure
-     * 
-     * @param port Port value to use
-     * @param ip IP address to use
-     * @param addr sockaddr_in structure to populate
-     */
-     // NOLINTNEXTLINE
-    void initAddr(const int port, const std::string& ipAddr, sockaddr_in& addr) noexcept(false)
-    {
-        addr.sin_family = AF_INET;
-        if (ipAddr.empty() || ipAddr == "0.0.0.0")
-        {
-            addr.sin_addr.s_addr = INADDR_ANY;
-        }
-        else
-        {
-            if (::inet_pton(AF_INET, ipAddr.c_str(), &addr.sin_addr) <= 0)
-            {
-                throw std::runtime_error("Failed to parse IP address");
-            }
-        }
-        addr.sin_port = ::htons(port);
-    }
-
-    /**
-     * @brief Generate a new cookie to use for the DTLS connection
-     * 
-     * @param ssl SSL context
-     * @param cookie Buffer to create the cookie 
-     * @param len Cookie buffer length
-     * 
-     * @return int 1 for success
-     */
-     // NOLINTNEXTLINE
-    auto genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len) noexcept -> int
-    {
-        std::srand(std::time(nullptr)); // NOLINT
-
-        for (unsigned int i = 0; i < COOKIE_LEN; ++i)
-        {
-            gcookie[i] = static_cast<unsigned char>(::rand()); // NOLINT
-        }
-
-        const auto length = sizeof(in_addr) + sizeof(uint16_t);
-        sockaddr_in addr;
-        static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
-        std::array<unsigned char, length> buffer = {};
-
-        ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
-        ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
-
-        std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
-        unsigned int resLen = 0;
-        HMAC(EVP_sha1(), gcookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
-        ::memcpy(cookie, result.data(), resLen);
-        *len = resLen;
-        return 1;
-    }
-
-    /**
-     * @brief Verify the cookie passed in is valid
-     * 
-     * @param ssl SSL context
-     * @param cookie Cookie to verify
-     * @param len Length of cookie
-     * 
-     * @return int 1 for valid cookie, 0 for invalid
-     */
-     // NOLINTNEXTLINE
-    auto verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len) noexcept -> int
-    {
-        sockaddr_in addr;
-        static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
-
-        const auto length = sizeof(in_addr) + sizeof(uint16_t);
-        std::array<unsigned char, length> buffer = {};
-
-        ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
-        ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
-        std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
-        unsigned int resLen = 0;
-        HMAC(EVP_sha1(), gcookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
-
-        if ((len == resLen) && (::memcmp(result.data(), cookie, resLen) == 0))
-        {
-            return 1;
-        }
-
-        return 0;
-    }
-
-    /**
-     * @brief Callback verification method
-     * 
-     * @return int 1 for good callback
-     */
-    // NOLINTNEXTLINE
-    auto verifyCallback (int val, X509_STORE_CTX *ctx) noexcept -> int
-    {
-        static_cast<void>(val);
-        static_cast<void>(ctx);
-
-        return 1;
-    }
-}
-
-namespace com::socket
-{
-#ifdef WINDOWS
-    std::mutex gWsaMutex;
-
-    /**
-     * @brief Check if windows sockets are initialized
-     * 
-     * @return true Windows sockets are ready
-     * @return false Windows sockets not ready yet
-     */
-    bool WinsockInitialized() noexcept
-    {
-        SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        if (s == INVALID_SOCKET) 
-        {
-            return false;
-        }
-
-        ::closesocket(s);
-        return true;
-    }
-#endif
-
-    class TCPClient
+    class Socket
     {
     public:
 
-        auto operator=(TCPClient&&) -> TCPClient& = default;
-        auto operator=(TCPClient&) -> TCPClient& = delete;
-        TCPClient(TCPClient&) = delete;
+        auto operator=(Socket&) -> Socket& = delete;
+        auto operator=(Socket&&) -> Socket& = delete;
+        Socket(Socket&) = delete;
 
-        /**
-         * @brief Construct a new TCPClient object for normal or SSL/TLS connections
-         * 
-         * @param filedescriptor Previously created socket file descriptor
-         * @param sslctx Previously created SSL context or default null pointer for non secure connection
-         */
+        Socket() noexcept(false)
 #ifdef LINUX
-        explicit TCPClient(const int filedescriptor, SSL_CTX* sslctx = nullptr) noexcept(false)
+            : m_fd(-1)
 #else
-        explicit TCPClient(SOCKET filedescriptor, SSL_CTX *sslctx = nullptr) noexcept(false)
+            : m_fd(INVALID_SOCKET)
 #endif
-            : m_sockFd(filedescriptor)
-#ifdef WINDOWS
-            , m_wsaData()
-#endif
-            , m_cSSL(nullptr)
-            , m_sslctx(nullptr)
         {
-            if (sslctx != nullptr)
+            init();
+        }
+
+#ifdef LINUX
+        explicit Socket(const int filedescriptor) noexcept
+#else
+        explicit Socket(SOCKET filedescriptor) noexcept
+#endif
+            : m_fd(filedescriptor)
+        {
+        }
+
+        Socket(const int domain, const int type, const int protocol) noexcept(false)
+            : Socket()
+        {
+            initSocket(domain, type, protocol);
+        }
+
+        virtual ~Socket()
+        {
+#ifdef LINUX
+            static_cast<void>(::shutdown(m_fd, SHUT_RDWR));
+            static_cast<void>(::close(m_fd));
+#else
+            static_cast<void>(::shutdown(m_fd, SD_BOTH));
+            static_cast<void>(::closesocket(m_fd));
+#endif
+        }
+
+        void initSocket(const int domain, const int type, const int protocol) noexcept(false)
+        {
+            m_fd = ::socket(domain, type, protocol);
+#ifdef LINUX
+            if (m_fd < 0)
+#else
+            if (m_fd == INVALID_SOCKET)
+#endif
             {
-                m_cSSL = SSL_new(sslctx);
-                if (m_cSSL == nullptr)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Unable to create new SSL client");
-                }
-
-                SSL_set_fd(m_cSSL, m_sockFd);
-
-                if (SSL_accept(m_cSSL) <= 0)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to SSL accept client");
-                }
+                throw std::runtime_error("Failed to create Socket");
             }
         }
 
-        /**
-         * @brief Construct a new TCPClient object for normal or SSL/TLS connections
-         * 
-         * @param ip IP address of the TCP server
-         * @param port Port of the TCP server
-         * @param ssl Flag to indicate if this TCP client is going to be used for SSL/TLS
-         */
-        TCPClient(const std::string &ipAddr, const uint16_t port, const bool ssl = false) noexcept(false)
-            : m_sockFd(-1)
-#ifdef WINDOWS
-            , m_wsaData()
+#ifdef LINUX
+        auto accept(sockaddr* address, socklen_t* addrlen) noexcept -> int
+#else
+        auto accept(sockaddr* address, socklen_t* addrlen) noexcept -> SOCKET
 #endif
-            , m_cSSL(nullptr)
-            , m_sslctx(nullptr)
+        {
+            return ::accept(m_fd, address, addrlen);
+        }
+
+#ifdef LINUX
+        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> int
+#else
+        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> SOCKET
+#endif
+        {
+            sockaddr_in addr = {};
+            socklen_t length = sizeof(addr);
+            auto retval = accept(reinterpret_cast<sockaddr*>(&addr), &length);
+#ifdef LINUX
+            if (retval > 0)
+#else
+            if (retval != INVALID_SOCKET)
+#endif
+            {
+                char* receivedAddr = ::inet_ntoa(addr.sin_addr);
+                if (receivedAddr == reinterpret_cast<char*>(INADDR_NONE))
+                {
+                    throw std::runtime_error("Invalid IP address received on accept.");
+                }
+
+                ipAddr = std::string(receivedAddr);
+                port = addr.sin_port;
+            }
+
+            return retval;
+        }
+
+        [[nodiscard]] auto bind(const sockaddr* address, int length) noexcept -> ssize_t
+        {
+            return ::bind(m_fd, address, length);
+        }
+
+        [[nodiscard]] auto bind(const std::string& ipAddr, const uint16_t port) noexcept(false) -> bool
+        {
+            sockaddr_in addr = {};
+            initAddr(ipAddr, port, addr);
+            socklen_t length = sizeof(addr);
+            auto retval = true;
+            if (bind(reinterpret_cast<sockaddr*>(&addr), length) < 0)
+            {
+                retval = false;
+            }
+
+            return retval;
+        }
+
+        [[nodiscard]] auto connect(const sockaddr* serveraddr, int addrlength) noexcept -> ssize_t
+        {
+            return ::connect(m_fd, serveraddr, addrlength);
+        }
+
+        [[nodiscard]] virtual auto connect(const std::string& ipAddr, const uint16_t port) noexcept(false) -> bool
+        {
+            sockaddr_in addr = {};
+            initAddr(ipAddr, port, addr);
+            socklen_t length = sizeof(addr);
+            auto retval = true;
+            if (connect(reinterpret_cast<sockaddr*>(&addr), length) < 0)
+            {
+                retval = false;
+            }
+            return retval;
+        }
+
+        [[nodiscard]] auto listen(int backlog) noexcept -> ssize_t
+        {
+            return ::listen(m_fd, backlog);
+        }
+
+        [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::read(m_fd, buffer, length);
+#else
+            return ::recv(m_fd, reinterpret_cast<char*>(buffer), length, 0);
+#endif
+        }
+
+        [[nodiscard]] auto readfrom(void* buffer, size_t length, sockaddr* from, socklen_t* fromlength) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::recvfrom(m_fd, buffer, length, 0, from, fromlength);
+#else
+            return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, from, fromlength);
+#endif
+        }
+
+        [[nodiscard]] auto readfrom(void* buffer, size_t length, std::string& ipAddr, uint16_t& port) noexcept(false) -> ssize_t
+        {
+            sockaddr_in addr = {};
+            socklen_t addrlength = sizeof(addr);
+            auto retval = readfrom(buffer, length, reinterpret_cast<sockaddr*>(&addr), &addrlength);
+            if (retval > 0)
+            {
+                char* receivedAddr = ::inet_ntoa(addr.sin_addr);
+                if (receivedAddr == reinterpret_cast<char*>(INADDR_NONE))
+                {
+                    throw std::runtime_error("Invalid IP address received on readfrom.");
+                }
+
+                ipAddr = std::string(receivedAddr);
+                port = addr.sin_port;
+            }
+
+            return retval;
+        }
+
+        auto send(const void* buffer, size_t length) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::send(m_fd, buffer, length, 0);
+#else
+            return ::send(m_fd, reinterpret_cast<const char*>(buffer), length, 0);
+#endif
+        }
+
+        auto sendto(const void* buffer, size_t length, const sockaddr* toaddr, int tolength) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::sendto(m_fd, buffer, length, 0, toaddr, tolength);
+#else
+            return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, toaddr, tolength);
+#endif
+        }
+
+        auto sendto(const void* buffer, size_t length, const std::string& ipAddr, const uint16_t port) noexcept(false) -> ssize_t
+        {
+            sockaddr_in addr = {};
+            initAddr(ipAddr, port, addr);
+            return sendto(buffer, length, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+        }
+
+        [[nodiscard]] auto select(fd_set* readfds, fd_set* writefds, fd_set* exceptfds, timeval* timeout) noexcept -> ssize_t
+        {
+            return ::select(m_fd, readfds, writefds, exceptfds, timeout);
+        }
+
+        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, timeval& timeout) noexcept -> ssize_t
+        {
+            return ::select(m_fd, &readfds, &writefds, &exceptfds, &timeout);
+        }
+
+        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, const int milliseconds) noexcept -> ssize_t
+        {
+            ssize_t retval;
+            if (milliseconds < 0)
+            {
+                retval = ::select(m_fd, &readfds, &writefds, &exceptfds, nullptr);
+            }
+            else
+            {
+                timeval timeout 
+                {
+                    .tv_sec = milliseconds * MILLISECONDS_PER_SECOND,
+                    .tv_usec = milliseconds / MILLISECONDS_PER_SECOND
+                };
+
+                retval = select(readfds, writefds, exceptfds, timeout);
+            }
+
+            return retval;
+        }
+
+        auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) noexcept -> ssize_t
+        {
+            return ::getsockopt(m_fd, level, optname, optval, optlen);
+        }
+
+        auto setsockopt(const int level, const int optname, const void *optval, const int optlen) noexcept -> ssize_t
+        {
+            return ::setsockopt(m_fd, level, optname, optval, optlen);
+        }
+
+    protected:
+
+        /**
+         * @brief Initialize the Windows socket library one time
+         * 
+         */
+        void init() const noexcept(false)
         {
 #ifdef WINDOWS
+            std::call_once(m_onetime, []()
             {
-                std::lock_guard<std::mutex> lock(gWsaMutex);
-                if (!WinsockInitialized()) 
+                if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
                 {
-                    if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
-                    {
-                        throw std::runtime_error("Could not start-up Windows sockets");
-                    }
+                    throw std::runtime_error("Could not start-up Windows sockets");
+                }
+            });
+#endif
+        }
+
+        /**
+         * @brief Initialize the sockaddr_in structure with the provided IP and port
+         * 
+         * @param ipAddr IP address 
+         * @param port port value
+         * @param addr Address structure to fill out
+         */
+        void initAddr(const std::string& ipAddr, const int port, sockaddr_in& addr) const noexcept(false)
+        {
+            addr.sin_family = AF_INET;
+            if (ipAddr.empty() || ipAddr == "0.0.0.0")
+            {
+                addr.sin_addr.s_addr = INADDR_ANY;
+            }
+            else
+            {
+                if (::inet_pton(AF_INET, ipAddr.c_str(), &addr.sin_addr) <= 0)
+                {
+                    throw std::runtime_error("Failed to parse IP address");
                 }
             }
+            addr.sin_port = ::htons(port);
+        }
+
+        /**
+         * @brief Generate a new cookie to use for the DTLS connection
+         * 
+         * @param ssl SSL context
+         * @param cookie Buffer to create the cookie 
+         * @param len Cookie buffer length
+         * 
+         * @return int 1 for success
+         */
+        // NOLINTNEXTLINE
+        static auto genCookie(SSL *ssl, unsigned char* cookie, unsigned int* len) noexcept -> int
+        {
+            std::srand(std::time(nullptr)); // NOLINT
+
+            for (unsigned int i = 0; i < COOKIE_LEN; ++i)
+            {
+                m_cookie[i] = static_cast<unsigned char>(::rand()); // NOLINT
+            }
+
+            const auto length = sizeof(in_addr) + sizeof(uint16_t);
+            sockaddr_in addr;
+            static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
+            std::array<unsigned char, length> buffer = {};
+
+            ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
+            ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
+
+            std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
+            unsigned int resLen = 0;
+            HMAC(EVP_sha1(), m_cookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
+            ::memcpy(cookie, result.data(), resLen);
+            *len = resLen;
+            return 1;
+        }
+
+        /**
+         * @brief Verify the cookie passed in is valid
+         * 
+         * @param ssl SSL context
+         * @param cookie Cookie to verify
+         * @param len Length of cookie
+         * 
+         * @return int 1 for valid cookie, 0 for invalid
+         */
+        // NOLINTNEXTLINE
+        static auto verifyCookie(SSL* ssl, const unsigned char* cookie, unsigned int len) noexcept -> int
+        {
+            sockaddr_in addr;
+            static_cast<void>(BIO_dgram_get_peer(SSL_get_rbio(ssl), &addr));
+
+            const auto length = sizeof(in_addr) + sizeof(uint16_t);
+            std::array<unsigned char, length> buffer = {};
+
+            ::memcpy(buffer.data(), &addr.sin_port, sizeof(uint16_t));
+            ::memcpy(&buffer[sizeof(addr.sin_port)], &addr.sin_addr, sizeof(in_addr));
+            std::array<unsigned char, EVP_MAX_MD_SIZE> result = {};
+            unsigned int resLen = 0;
+            HMAC(EVP_sha1(), m_cookie.data(), COOKIE_LEN, buffer.data(), length, result.data(), &resLen);
+
+            if ((len == resLen) && (::memcmp(result.data(), cookie, resLen) == 0))
+            {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        /**
+         * @brief Callback verification method
+         * 
+         * @return int 1 for good callback
+         */
+        // NOLINTNEXTLINE
+        static auto verifyCallback (int val, X509_STORE_CTX *ctx) noexcept -> int
+        {
+            static_cast<void>(val);
+            static_cast<void>(ctx);
+
+            return 1;
+        }
+
+        constexpr static unsigned int MILLISECONDS_PER_SECOND = 1000;
+        constexpr static unsigned int COOKIE_LEN = 16; // NOLINT
+        constexpr static unsigned int ONE_HUNDRED_MILLISEC = 100; // NOLINT
+        constexpr static unsigned int FIVE_SECONDS = 5; // NOLINT
+
+        static std::array<unsigned char, COOKIE_LEN> m_cookie; // NOLINT
+#ifdef LINUX
+        int m_fd;
+#else
+        SOCKET m_fd;
+        WSADATA m_wsaData;
+        std::once_flag m_onetime;
 #endif
+    };
+
+    std::array<unsigned char, Socket::COOKIE_LEN> Socket::m_cookie = {};
+
+    class TcpClient : public Socket
+    {
+    public:
+
+        auto operator=(TcpClient&) -> TcpClient& = delete;
+        auto operator=(TcpClient&&) -> TcpClient& = delete;
+        TcpClient(TcpClient&) = delete;
+
+        TcpClient() noexcept(false)
+            : Socket(AF_INET, SOCK_STREAM, 0)
+        {
+            init();
+        }
+
+        explicit TcpClient(const int filedescriptor) noexcept(false)
+            : Socket(filedescriptor)
+        {
+        }
+
+        TcpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
+            : TcpClient()
+        {
             if (ipAddr.empty())
             {
                 throw std::runtime_error("IP address is empty! Cannot connect to empty server!");
             }
 
-            if (ssl)
-            {
-                OpenSSL_add_ssl_algorithms();
-                const auto* method = SSLv23_client_method();
-                SSL_load_error_strings();
-                m_sslctx = SSL_CTX_new(method);
-            }
-
-            m_sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
-#ifdef LINUX
-            if (m_sockFd < 0)
-#else
-            if (m_sockFd == INVALID_SOCKET)
-#endif
-            {
-                throw std::runtime_error("Failed to create Socket FD");
-            }
-
-            init();
-
             sockaddr_in addr = {};
-            initAddr(port, ipAddr, addr);
+            initAddr(ipAddr, port, addr);
 
-            auto ret = ::connect(m_sockFd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+            auto ret = ::connect(m_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
 #ifdef LINUX
             if (ret < 0)
 #else
@@ -284,119 +457,19 @@ namespace com::socket
             {
                 throw std::runtime_error("Failed to connect to server!");
             }
-
-            if (ssl)
-            {
-                m_cSSL = SSL_new(m_sslctx);
-                SSL_set_fd(m_cSSL, m_sockFd);
-                if (SSL_connect(m_cSSL) <= 0)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to SSL connect to server");
-                }
-            }
         }
 
-        virtual ~TCPClient()
-        {
-#ifdef LINUX
-            static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
-            static_cast<void>(::close(m_sockFd));
-#else
-            static_cast<void>(::shutdown(m_sockFd, SD_BOTH));
-            static_cast<void>(::closesocket(m_sockFd));
-#endif
+        virtual ~TcpClient() = default;
 
-            if (m_cSSL != nullptr)
-            {
-                SSL_shutdown(m_cSSL);
-                SSL_free(m_cSSL);
-            }
-            if (m_sslctx != nullptr)
-            {
-                SSL_CTX_free(m_sslctx);
-            }
-        }
+    protected:
 
-        /**
-         * @brief Perform a socket read
-         * 
-         * @param buffer Buffer to read the data into
-         * @param len Length of the receive buffer
-         * @return ssize_t The length of data received
-         */
-        [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
-        {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval = SSL_read(m_cSSL, buffer, length);
-            }
-            else
-            {
-#ifdef LINUX
-                retval = ::read(m_sockFd, buffer, len);
-#else
-                retval = ::recv(m_sockFd, reinterpret_cast<char*>(buffer), len, 0);
-#endif
-            }
-
-            return retval;
-        }
-
-        /**
-         * @brief Send buffer data on the socket
-         * 
-         * @param buffer Buffer of data to send
-         * @param len Length of the data to send
-         * @return ssize_t Length of data sent on the socket
-         */
-        [[nodiscard]] auto send(const void* buffer, size_t len) noexcept -> ssize_t
-        {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval = SSL_write(m_cSSL, buffer, length);
-            }
-            else
-            {
-#ifdef LINUX
-                retval = ::send(m_sockFd, buffer, len, 0);
-#else
-                retval = ::send(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0);
-#endif
-            }
-
-            return retval;
-        }
-
-    private:
-
-        /// @brief socket file descriptor
-#ifdef LINUX
-        int m_sockFd;
-#else
-        SOCKET m_sockFd;
-        WSADATA m_wsaData;
-#endif
-        /// @brief SSL/TLS instance
-        SSL* m_cSSL;
-        /// @brief SSL/TLS context
-        SSL_CTX* m_sslctx;
-        
-        /**
-         * @brief Initialize the TCP client to not use the Nagle algorithm
-         * 
-         */
-        void init() const noexcept(false)
+        void init() noexcept(false)
         {
             int flag = 1;
 #ifdef LINUX
-            if (::setsockopt(m_sockFd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
+            if (setsockopt(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
 #else
-            if (::setsockopt(m_sockFd, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
+            if (setsockopt(IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
 #endif
             {
                 throw std::runtime_error("Failed to setup socket!");
@@ -404,134 +477,50 @@ namespace com::socket
         }
     };
 
-    class TCPServer
+    class TcpServer : public Socket
     {
     public:
 
-        auto operator=(TCPServer&) -> TCPServer& = delete;
-        auto operator=(TCPServer&&) -> TCPServer& = delete;
-        TCPServer(TCPServer&) = delete;
+        auto operator=(TcpServer&) -> TcpServer& = delete;
+        auto operator=(TcpServer&&) -> TcpServer& = delete;
+        TcpServer(TcpServer&) = delete;
 
-        /**
-         * @brief Construct a new TCPServer object
-         * 
-         */
-        TCPServer() noexcept(false)
-            : TCPServer("", "")
+        TcpServer() noexcept(false)
+            : Socket(AF_INET, SOCK_STREAM, 0)
         {
-        }
-
-        /**
-         * @brief Construct a new secure SSL/TLS TCPServer object
-         * 
-         * @param keyFile Key file to use for communication
-         * @param certFile Certifaction file for provided key
-         */
-        TCPServer(std::string keyFile, std::string certFile) noexcept(false)
-#ifdef LINUX
-            : m_sockFd(-1)
-#else
-            : m_sockFd(INVALID_SOCKET)
-            , m_wsaData()
-#endif
-            , m_serverAddr()
-            , m_sslctx(nullptr)
-            , m_keyFile(std::move(keyFile))
-            , m_certFile(std::move(certFile))
-        {
-#ifdef WINDOWS
-            {
-                std::lock_guard<std::mutex> lock(gWsaMutex);
-                if (!WinsockInitialized()) 
-                {
-                    if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
-                    {
-                        throw std::runtime_error("Could not start-up Windows sockets");
-                    }
-                }
-            }
-#endif
-
-            if (m_keyFile.length() > 0 && m_certFile.length() > 0)
-            {
-                SSL_load_error_strings();
-                OpenSSL_add_all_algorithms();
-                const auto* method = SSLv23_server_method();
-                m_sslctx = SSL_CTX_new(method);
-                if (m_sslctx == nullptr)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to create server SSL context");
-                }
-            }
-
-            m_sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
-#ifdef LINUX
-            if (m_sockFd < 0)
-#else
-            if (m_sockFd == INVALID_SOCKET)
-#endif
-            {
-                throw std::runtime_error("Failed to create Socket FD");
-            }
-
             init();
         }
 
-        /**
-         * @brief Construct a new unsecure TCPServer object
-         * 
-         * @param port Port on which to bind TCP server
-         * @param ipAddr IP address on which to bind TCP server
-         * @param backlog Backlog for TCP accept calls
-         */
-        explicit TCPServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0", const int backlog = 3) noexcept(false)
-            : TCPServer()
+        explicit TcpServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
+            : TcpServer()
         {
-            bindAndListen(port, ipAddr, backlog);
-        }
-
-        /**
-         * @brief Construct a new TCPServer object
-         * 
-         * @param port Port on which to bind TCP server
-         * @param ipAddr IP address on which to bind TCP server
-         * @param keyFile Key file to use for communication
-         * @param certFile Certifaction file for provided key
-         * @param backlog Backlog for TCP accept calls
-         */
-        TCPServer(const uint16_t port, const std::string& ipAddr, const std::string& keyFile, const std::string& certFile, const int backlog = 3) noexcept(false)
-            : TCPServer(keyFile, certFile)
-        {
-            bindAndListen(port, ipAddr, backlog);
-        }
-
-        virtual ~TCPServer()
-        {
-#ifdef LINUX
-            static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
-            static_cast<void>(::close(m_sockFd));
-#else
-            static_cast<void>(::shutdown(m_sockFd, SD_BOTH));
-            static_cast<void>(::closesocket(m_sockFd));
-#endif
-
-            if (m_sslctx != nullptr)
+            if (!bind(ipAddr, port))
             {
-                SSL_CTX_free(m_sslctx);
+                throw std::runtime_error("Failed to bind TCP server.");
             }
         }
+
+        TcpServer(const std::string& ipAddr, const uint16_t port, const int backlog) noexcept(false)
+            : TcpServer(port, ipAddr)
+        {
+            if (listen(backlog) < 0)
+            {
+                throw std::runtime_error("Failed to listen on TCP server.");
+            }
+        }
+
+        virtual ~TcpServer() = default;
 
         /**
          * @brief Accept a new TCP connection either secure or unsecure
          * 
-         * @return TCPClient Newly accepted TCP connection
+         * @return TcpClient Newly accepted TCP connection
          */
-        [[nodiscard]] auto accept() noexcept(false) -> TCPClient
+        [[nodiscard]] auto accept() noexcept(false) -> TcpClient
         {
             sockaddr_in client = {};
             socklen_t clientLen = sizeof(client);
-            auto fileD = ::accept(m_sockFd, reinterpret_cast<sockaddr*>(&client), &clientLen);
+            auto fileD = Socket::accept(reinterpret_cast<sockaddr*>(&client), &clientLen);
 #ifdef LINUX
             if (fileD < 0)
 #else
@@ -541,91 +530,18 @@ namespace com::socket
                 throw std::runtime_error("Failed to accept client!");
             }
 
-            if (m_certFile.length() > 0 && m_keyFile.length() > 0)
-            {
-                if (SSL_CTX_use_certificate_file(m_sslctx, m_certFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem certificate file");
-                }
-                if (SSL_CTX_use_PrivateKey_file(m_sslctx, m_keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem private key file");
-                }
-                if (SSL_CTX_check_private_key(m_sslctx) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Keys do not match!");
-                }
-            }
-
-            return TCPClient(fileD, m_sslctx);
+            return TcpClient(fileD);
         }
 
-        /**
-         * @brief TCP server bind and listen
-         * 
-         * @param port Port on which to bind TCP server
-         * @param ip IP address on which to bind TCP server
-         * @param backlog Backlog for TCP accept calls
-         */
-        void bindAndListen(const uint16_t port, const std::string& ipAddr = "", const int backlog = 3) noexcept(false)
-        {
-            initAddr(port, ipAddr, m_serverAddr);
+    protected:
 
-            auto ret = ::bind(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
-#ifdef LINUX
-            if (ret < 0)
-#else
-            if (ret == SOCKET_ERROR)
-#endif
-            {
-                std::cout << errno << ":" << strerror(errno) << std::endl; // NOLINT
-                throw std::runtime_error("Failed to bind server!");
-            }
-
-            ret = ::listen(m_sockFd, backlog);
-#ifdef LINUX
-            if (ret != 0)
-#else
-            if (ret == SOCKET_ERROR)
-#endif
-            {
-                throw std::runtime_error("Failed to listen on server socket.");
-            }
-        }
-
-    private:
-
-        /// @brief TCP server socket file descriptor
-#ifdef LINUX
-        int m_sockFd;
-#else
-        SOCKET m_sockFd;
-        WSADATA m_wsaData;
-#endif
-        /// @brief TCP server address on which to bind
-        sockaddr_in m_serverAddr;
-
-        /// @brief SSL/TLS context
-        SSL_CTX* m_sslctx;
-        /// @brief Key file to use for communication
-        const std::string m_keyFile;
-        /// @brief Certificate file for key file
-        const std::string m_certFile;
-
-        /**
-         * @brief Initialize the TCP server for IP and port reusability 
-         * 
-         */
-        void init() const noexcept(false)
+        void init() noexcept(false)
         {
             int opt = 1;
 #ifdef LINUX
-            if (::setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
-            if (::setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
 #endif
             {
                 throw std::runtime_error("Failed to setup socket!");
@@ -633,109 +549,441 @@ namespace com::socket
         }
     };
 
-    class UDPClient
+    class UdpClient : public Socket
     {
     public:
 
-        auto operator=(UDPClient&) -> UDPClient& = delete;
-        auto operator=(UDPClient&&) -> UDPClient& = delete;
-        UDPClient(UDPClient&) = delete;
+        auto operator=(UdpClient&) -> UdpClient& = delete;
+        auto operator=(UdpClient&&) -> UdpClient& = delete;
+        UdpClient(UdpClient&) = delete;
 
-        /**
-         * @brief UDPClient default constructor
-         * 
-         */
-        UDPClient() noexcept(false)
-#ifdef LINUX
-            : m_sockFd(-1)
-#else
-            : m_sockFd(INVALID_SOCKET)
-            , m_wsaData()
-#endif
-            , m_cSSL(nullptr)
-            , m_sslctx(nullptr)
-            , m_serverAddr()
-            , m_keyFile()
-            , m_certFile()
+        UdpClient() noexcept(false)
+            : Socket(AF_INET, SOCK_DGRAM, 0)
         {
-            init();
         }
 
-        /**
-         * @brief Construct a new UDPClient object for normal or SSL/TLS connections
-         * 
-         * @param ipAddr IP address of the UDP server
-         * @param port Port of the UDP server
-         */
-        UDPClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
-            : UDPClient()
+        UdpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
+            : UdpClient()
         {
             if (!connect(ipAddr, port))
             {
+                throw std::runtime_error("Failed to connect to UDP server!");
+            }
+        }
+
+        [[nodiscard]] auto connect(sockaddr* serveraddr, int addrlength) noexcept -> ssize_t
+        {
+            m_serverAddr = *(reinterpret_cast<sockaddr_in*>(serveraddr));
+            return ::connect(m_fd, reinterpret_cast<sockaddr*>(&m_serverAddr), addrlength);
+        }
+
+        [[nodiscard]] auto connect(const std::string& ipAddr, const uint16_t port) noexcept(false) -> bool override
+        {
+            initAddr(ipAddr, port, m_serverAddr);
+            socklen_t length = sizeof(m_serverAddr);
+            return (::connect(m_fd, reinterpret_cast<sockaddr*>(&m_serverAddr), length) == 0);
+        }
+
+        [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
+        {
+            socklen_t fromlength = sizeof(m_serverAddr);
+#ifdef LINUX
+            return ::recvfrom(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), &fromlength);
+#else
+            return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), &fromlength);
+#endif
+        }
+
+        auto send(const void* buffer, size_t length) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::sendto(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
+#else
+            return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
+#endif
+        }
+
+    private:
+
+        sockaddr_in m_serverAddr;
+    };
+
+    class UdpServer : public Socket
+    {
+    public:
+
+        auto operator=(UdpServer&) -> UdpServer& = delete;
+        auto operator=(UdpServer&&) -> UdpServer& = delete;
+        UdpServer(UdpServer&) = delete;
+
+        UdpServer() noexcept(false)
+            : Socket(AF_INET, SOCK_DGRAM, 0)
+        {
+            UdpServer::init();
+        }
+
+        UdpServer(const std::string& ipAddr, const uint16_t port) noexcept(false)
+            : UdpServer()
+        {
+            if (!bind(ipAddr, port))
+            {
+                throw std::runtime_error("Failed to bind UDP server.");
+            }
+        }
+
+        [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
+        {
+            socklen_t fromlength = sizeof(m_clientAddr);
+#ifdef LINUX
+            return ::recvfrom(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &fromlength);
+#else
+            return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &fromlength);
+#endif
+        }
+
+        auto send(const void* buffer, size_t length) noexcept -> ssize_t
+        {
+#ifdef LINUX
+            return ::sendto(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), sizeof(m_clientAddr));
+#else
+            return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), sizeof(m_clientAddr));
+#endif
+        }
+
+    private:
+
+        void init() noexcept(false)
+        {
+            int opt = 1;
+#ifdef LINUX
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
+#else
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
+#endif
+            {
+                throw std::runtime_error("Failed to setup socket!");
+            }
+        }
+
+        sockaddr_in m_clientAddr;
+    };
+
+    class SecureTcpClient : public Socket
+    {
+    public:
+
+        auto operator=(SecureTcpClient&) -> SecureTcpClient& = delete;
+        auto operator=(SecureTcpClient&&) -> SecureTcpClient& = delete;
+        SecureTcpClient(SecureTcpClient&) = delete;
+
+#ifdef LINUX
+        SecureTcpClient(const int filedescriptor, SSL_CTX* sslctx) noexcept(false)
+#else
+        SecureTcpClient(SOCKET filedescriptor, SSL_CTX *sslctx) noexcept(false)
+#endif
+            : Socket(filedescriptor)
+            , m_cSSL(nullptr)
+            , m_sslctx(nullptr)
+        {
+            initSsl(sslctx);
+
+            if (SSL_accept(m_cSSL) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to SSL accept client");
+            }
+        }
+
+        SecureTcpClient(const std::string& ipAddr, const uint16_t port)
+            : Socket()
+            , m_cSSL(nullptr)
+            , m_sslctx(nullptr)
+        {
+            OpenSSL_add_ssl_algorithms();
+            const auto* method = SSLv23_client_method();
+            SSL_load_error_strings();
+            m_sslctx = SSL_CTX_new(method);
+
+            init();
+
+            if (ipAddr.empty())
+            {
+                throw std::runtime_error("IP address is empty! Cannot connect to empty server!");
+            }
+
+            sockaddr_in addr = {};
+            initAddr(ipAddr, port, addr);
+
+            auto ret = connect(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+#ifdef LINUX
+            if (ret < 0)
+#else
+            if (ret == SOCKET_ERROR)
+#endif
+            {
                 throw std::runtime_error("Failed to connect to server!");
+            }
+
+            initSsl(m_sslctx);
+
+            if (SSL_connect(m_cSSL) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to SSL connect to server");
+            }
+        }
+
+        virtual ~SecureTcpClient()
+        {
+            if (m_cSSL != nullptr)
+            {
+                SSL_shutdown(m_cSSL);
+                SSL_free(m_cSSL);
+            }
+            if (m_sslctx != nullptr)
+            {
+                SSL_CTX_free(m_sslctx);
+            }
+        }
+
+        [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
+        {
+            int length = static_cast<int>(len);
+            return SSL_read(m_cSSL, buffer, length);
+        }
+
+        auto send(const void* buffer, size_t len) noexcept -> ssize_t
+        {
+            int length = static_cast<int>(len);
+            return SSL_write(m_cSSL, buffer, length);
+        }
+
+    private:
+
+        void init() noexcept(false)
+        {
+            m_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+#ifdef LINUX
+            if (m_fd < 0)
+#else
+            if (m_fd == INVALID_SOCKET)
+#endif
+            {
+                throw std::runtime_error("Failed to create Socket FD");
+            }
+
+            int flag = 1;
+#ifdef LINUX
+            if (setsockopt(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
+#else
+            if (setsockopt(IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
+#endif
+            {
+                throw std::runtime_error("Failed to setup socket!");
+            }
+        }
+
+        void initSsl(SSL_CTX *sslctx) noexcept(false)
+        {
+            m_cSSL = SSL_new(sslctx);
+            if (m_cSSL == nullptr)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Unable to create new SSL client");
+            }
+            SSL_set_fd(m_cSSL, m_fd);
+        }
+
+        /// @brief SSL/TLS instance
+        SSL* m_cSSL;
+        /// @brief SSL/TLS context
+        SSL_CTX* m_sslctx;
+    };
+
+    class SecureTcpServer : public Socket
+    {
+    public:
+
+        auto operator=(SecureTcpServer&) -> SecureTcpServer& = delete;
+        auto operator=(SecureTcpServer&&) -> SecureTcpServer& = delete;
+        SecureTcpServer(SecureTcpServer&) = delete;
+
+        SecureTcpServer(const std::string& keyFile, const std::string& certFile)
+            : m_sslctx(nullptr)
+            , m_keyFile(keyFile)
+            , m_certFile(certFile)
+        {
+            if (m_certFile.empty() || m_keyFile.empty())
+            {
+                throw std::runtime_error("Invalid key file or cert file for TCP server.");
+            }
+
+            SSL_load_error_strings();
+            OpenSSL_add_all_algorithms();
+            const auto* method = SSLv23_server_method();
+            m_sslctx = SSL_CTX_new(method);
+            if (m_sslctx == nullptr)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to create server SSL context");
+            }
+
+            init();
+        }
+
+        SecureTcpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0")
+            : SecureTcpServer(keyFile, certFile)
+        {
+            if (!bind(ipAddr, port))
+            {
+                throw std::runtime_error("Failed to bind Secure TCP server.");
+            }
+        }
+
+        virtual ~SecureTcpServer()
+        {
+            if (m_sslctx != nullptr)
+            {
+                SSL_CTX_free(m_sslctx);
             }
         }
 
         /**
-         * @brief Construct a DTLS UDPClient object
+         * @brief Accept a new TCP connection either secure or unsecure
          * 
-         * @param keyFile SSL key file to use
-         * @param certFile SSL certificate file to use
+         * @param ipAddr Returned IP address of accepted client
+         * @param port Returned port of accepted client
+         * 
+         * @return SecureTcpClient Newly accepted TCP connection
          */
-        UDPClient(std::string keyFile, std::string certFile) noexcept(false)
-#ifdef LINUX
-            : m_sockFd(-1)
-#else
-            : m_sockFd(INVALID_SOCKET)
-            , m_wsaData()
-#endif
-            , m_cSSL(nullptr)
-            , m_sslctx(nullptr)
-            , m_serverAddr()
-            , m_keyFile(std::move(keyFile))
-            , m_certFile(std::move(certFile))
+        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> SecureTcpClient
         {
-            init();
+            auto fileD = Socket::accept(ipAddr, port);
+#ifdef LINUX
+            if (fileD < 0)
+#else
+            if (fileD == INVALID_SOCKET)
+#endif
+            {
+                throw std::runtime_error("Failed to accept client!");
+            }
+
+            initSecureFiles();
+
+            return SecureTcpClient(fileD, m_sslctx);
         }
 
         /**
-         * @brief Construct a DTLS UDPClient object
+         * @brief Accept a new TCP connection either secure or unsecure
          * 
-         * @param ipAddr IP address of the UDP server
-         * @param port Port of the UDP server
-         * @param keyFile SSL key file to use
-         * @param certFile SSL certificate file to use
+         * @return SecureTcpClient Newly accepted TCP connection
          */
-        UDPClient(const std::string& ipAddr, const uint16_t port, std::string keyFile, std::string certFile) noexcept(false)
+        [[nodiscard]] auto accept() noexcept(false) -> SecureTcpClient
+        {
+            sockaddr_in client = {};
+            socklen_t clientLen = sizeof(client);
+            auto fileD = Socket::accept(reinterpret_cast<sockaddr*>(&client), &clientLen);
 #ifdef LINUX
-            : m_sockFd(-1)
+            if (fileD < 0)
 #else
-            : m_sockFd(INVALID_SOCKET)
-            , m_wsaData()
+            if (fileD == INVALID_SOCKET)
 #endif
+            {
+                throw std::runtime_error("Failed to accept client!");
+            }
+
+            initSecureFiles();
+
+            return SecureTcpClient(fileD, m_sslctx);
+        }
+
+    private:
+
+        void init() noexcept(false)
+        {
+            Socket::init();
+
+            m_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+#ifdef LINUX
+            if (m_fd < 0)
+#else
+            if (m_fd == INVALID_SOCKET)
+#endif
+            {
+                throw std::runtime_error("Failed to create Socket FD");
+            }
+            
+            int opt = 1;
+#ifdef LINUX
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
+#else
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
+#endif
+            {
+                throw std::runtime_error("Failed to setup socket!");
+            }
+        }
+        
+        void initSecureFiles() noexcept(false)
+        {
+            if (SSL_CTX_use_certificate_file(m_sslctx, m_certFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem certificate file");
+            }
+            if (SSL_CTX_use_PrivateKey_file(m_sslctx, m_keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem private key file");
+            }
+            if (SSL_CTX_check_private_key(m_sslctx) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Keys do not match!");
+            }
+        }
+
+        /// @brief SSL/TLS context
+        SSL_CTX* m_sslctx;
+        /// @brief Key file to use for communication
+        const std::string m_keyFile;
+        /// @brief Certificate file for key file
+        const std::string m_certFile;
+    };
+
+    class SecureUdpClient : public Socket
+    {
+    public:
+
+        auto operator=(SecureUdpClient&) -> SecureUdpClient& = delete;
+        auto operator=(SecureUdpClient&&) -> SecureUdpClient& = delete;
+        SecureUdpClient(SecureUdpClient&) = delete;
+
+        SecureUdpClient(const std::string& keyFile, const std::string& certFile)
+            : Socket()
             , m_cSSL(nullptr)
             , m_sslctx(nullptr)
-            , m_serverAddr()
-            , m_keyFile(std::move(keyFile))
-            , m_certFile(std::move(certFile))
+            , m_bio(nullptr)
         {
-            init();
+            if (certFile.empty() || keyFile.empty())
+            {
+                throw std::runtime_error("Invalid key file or cert file for Secure UDP client.");
+            }
+
+            init(keyFile, certFile);
+        }
+
+        SecureUdpClient(const std::string& ipAddr, const uint16_t port, const std::string& keyFile, const std::string& certFile)
+            : SecureUdpClient(keyFile, certFile)
+        {
             if (!connect(ipAddr, port))
             {
                 throw std::runtime_error("Failed to connect SSL");
             }
         }
 
-        virtual ~UDPClient()
+        virtual ~SecureUdpClient()
         {
-#ifdef LINUX
-            static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
-            static_cast<void>(::close(m_sockFd));
-#else
-            static_cast<void>(::shutdown(m_sockFd, SD_BOTH));
-            static_cast<void>(::closesocket(m_sockFd));
-#endif
-
             if (m_cSSL != nullptr)
             {
                 SSL_shutdown(m_cSSL);
@@ -747,467 +995,221 @@ namespace com::socket
             }
         }
 
-        /**
-         * @brief Connect to the given IP and port UDP server
-         * 
-         * @param ipAddr IP of UDP server
-         * @param port Port of UDP server
-         * 
-         * @return true UDP connection successful
-         * @return false UDP connection unsuccessful
-         */
-        [[nodiscard]] auto connect(const std::string& ipAddr, const int port) noexcept(false) -> bool
+        [[nodiscard]] auto connect(const std::string& ipAddr, const uint16_t port) noexcept -> bool override
         {
-            initAddr(port, ipAddr, m_serverAddr);
-
-            return connect();
-        }
-
-        /**
-         * @brief Connect to the previously provided UDP server
-         * 
-         * @return true UDP connection successful
-         * @return false UDP connection unsuccessful
-         */
-        [[nodiscard]] auto connect() noexcept -> bool
-        {
-            auto ret = ::connect(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
-
-            auto retval = true;
-            if (!m_keyFile.empty() && !m_certFile.empty())
+            if (!Socket::connect(ipAddr, port))
             {
-                BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &m_serverAddr);
-                SSL_set_bio(m_cSSL, m_bio, m_bio);
-
-                if (SSL_connect(m_cSSL) <= 0)
-                {
-                    ERR_print_errors_fp(stderr);
-                    retval = false;
-                }
-            }
-            else
-            {
-#ifdef LINUX
-                retval = (ret == 0);
-#else
-                retval = (ret != SOCKET_ERROR);
-#endif
+                return false;
             }
 
-            return retval;
+            sockaddr_in addr = {};
+            initAddr(ipAddr, port, addr);
+            BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &addr);
+            SSL_set_bio(m_cSSL, m_bio, m_bio);
+
+            if (SSL_connect(m_cSSL) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                return false;
+            }
+
+            return true;
         }
 
-            /**
-         * @brief Perform a socket read
-         * 
-         * @param buffer Buffer to read the data into
-         * @param len Length of the receive buffer
-         * @return ssize_t The length of data received
-         */
         [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
         {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval = SSL_read(m_cSSL, buffer, length);
-            }
-            else
-            {
-                socklen_t socklen = sizeof(m_clientAddr);
-#ifdef LINUX
-                retval = ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
-#else
-                retval = ::recvfrom(m_sockFd, reinterpret_cast<char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), &socklen);
-#endif
-            }
-
-            return retval;
+            int length = static_cast<int>(len);
+            return SSL_read(m_cSSL, buffer, length);
         }
 
-        /**
-         * @brief Send buffer data on the socket
-         * 
-         * @param buffer Buffer of data to send
-         * @param len Length of the data to send
-         * @return ssize_t Length of data sent on the socket
-         */
-        [[nodiscard]] auto send(const void* buffer, size_t len) noexcept -> ssize_t
+        auto send(const void* buffer, size_t len) noexcept -> ssize_t
         {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval = SSL_write(m_cSSL, buffer, length);
-            }
-            else
-            {
-#ifdef LINUX
-                retval = ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_serverAddr), sizeof(m_serverAddr));
-#else
-                retval = ::sendto(m_sockFd, reinterpret_cast<const char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
-#endif
-            }
-
-            return retval;
+            int length = static_cast<int>(len);
+            return SSL_write(m_cSSL, buffer, length);
         }
 
     private:
 
-        /// @brief socket file descriptor
+        void init(const std::string& keyFile, const std::string& certFile) noexcept(false)
+        {
+            m_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 #ifdef LINUX
-        int m_sockFd;
+            if (m_fd < 0)
 #else
-        SOCKET m_sockFd;
-        WSADATA m_wsaData;
+            if (m_fd == INVALID_SOCKET)
 #endif
+            {
+                throw std::runtime_error("Failed to create Socket FD");
+            }
+
+            OpenSSL_add_ssl_algorithms();
+            SSL_load_error_strings();
+            m_sslctx = SSL_CTX_new(DTLS_client_method());
+            if (SSL_CTX_use_certificate_file(m_sslctx, certFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem certificate file");
+            }
+            if (SSL_CTX_use_PrivateKey_file(m_sslctx, keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem private key file");
+            }
+            if (SSL_CTX_check_private_key(m_sslctx) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Keys do not match!");
+            }
+
+            SSL_CTX_set_verify_depth(m_sslctx, 2);
+            SSL_CTX_set_read_ahead(m_sslctx, 1);
+
+            m_cSSL = SSL_new(m_sslctx);
+
+            m_bio = BIO_new_dgram(m_fd, BIO_CLOSE);
+        }
+
         /// @brief SSL/TLS instance
         SSL* m_cSSL;
         /// @brief SSL/TLS context
         SSL_CTX* m_sslctx;
         /// @brief SSL BIO instance
         BIO* m_bio;
-            /// @brief UDP server address on which to bind
-        sockaddr_in m_serverAddr;
-        /// @brief client address last received data from
-        sockaddr_in m_clientAddr;
-        /// @brief Key file to use for communication
-        const std::string m_keyFile;
-        /// @brief Certificate file for key file
-        const std::string m_certFile;
-
-        /**
-         * @brief Initialize the UDP client
-         * 
-         */
-        void init() noexcept(false)
-        {
-#ifdef WINDOWS
-            {
-                std::lock_guard<std::mutex> lock(gWsaMutex);
-                if (!WinsockInitialized()) 
-                {
-                    if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
-                    {
-                        throw std::runtime_error("Could not start-up Windows sockets");
-                    }
-                }
-            }
-#endif
-
-            m_sockFd = ::socket(AF_INET, SOCK_DGRAM, 0);
-#ifdef LINUX
-            if (m_sockFd < 0)
-#else
-            if (m_sockFd == INVALID_SOCKET)
-#endif
-            {
-                throw std::runtime_error("Failed to create socket!");
-            }
-
-            if (!m_keyFile.empty() && !m_certFile.empty())
-            {
-                OpenSSL_add_ssl_algorithms();
-                SSL_load_error_strings();
-                m_sslctx = SSL_CTX_new(DTLS_client_method());
-                if (SSL_CTX_use_certificate_file(m_sslctx, m_certFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem certificate file");
-                }
-                if (SSL_CTX_use_PrivateKey_file(m_sslctx, m_keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem private key file");
-                }
-                if (SSL_CTX_check_private_key(m_sslctx) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Keys do not match!");
-                }
-
-                SSL_CTX_set_verify_depth(m_sslctx, 2);
-                SSL_CTX_set_read_ahead(m_sslctx, 1);
-
-                m_cSSL = SSL_new(m_sslctx);
-
-                m_bio = BIO_new_dgram(m_sockFd, BIO_CLOSE);
-            }
-        }
     };
 
-    class UDPServer
+    class SecureUdpServer : public Socket
     {
     public:
 
-        auto operator=(UDPServer&) -> UDPServer& = delete;
-        auto operator=(UDPServer&&) -> UDPServer& = delete;
-        UDPServer(UDPServer&) = delete;
+        auto operator=(SecureUdpServer&) -> SecureUdpServer& = delete;
+        auto operator=(SecureUdpServer&&) -> SecureUdpServer& = delete;
+        SecureUdpServer(SecureUdpServer&) = delete;
 
-            /**
-         * @brief Construct a new secure SSL/DLS UDPServer object
-         * 
-         * @param keyFile Key file to use for communication
-         * @param certFile Certifaction file for provided key
-         */
-        UDPServer(std::string keyFile, std::string certFile) noexcept(false)
-#ifdef LINUX
-            : m_sockFd(-1)
-#else
-            : m_sockFd(INVALID_SOCKET)
-            , m_wsaData()
-#endif
+        SecureUdpServer(const std::string& keyFile, const std::string& certFile)
+            : Socket()
             , m_cSSL(nullptr)
             , m_sslctx(nullptr)
             , m_bio(nullptr)
-            , m_serverAddr()
-            , m_clientAddr()
-            , m_keyFile(std::move(keyFile))
-            , m_certFile(std::move(certFile))
         {
-#ifdef WINDOWS
+            init(keyFile, certFile);
+        }
+
+        SecureUdpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0")
+            : SecureUdpServer(keyFile, certFile)
+        {
+            if (!bind(ipAddr, port))
             {
-                std::lock_guard<std::mutex> lock(gWsaMutex);
-                if (!WinsockInitialized()) 
-                {
-                    if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
-                    {
-                        throw std::runtime_error("Could not start-up Windows sockets");
-                    }
-                }
-            }
-#endif
-
-            if (!m_keyFile.empty() && !m_certFile.empty())
-            {
-                OpenSSL_add_ssl_algorithms();
-                SSL_load_error_strings();
-                m_sslctx = SSL_CTX_new(DTLS_server_method());
-                SSL_CTX_set_session_cache_mode(m_sslctx, SSL_SESS_CACHE_OFF);
-
-                if (SSL_CTX_use_certificate_file(m_sslctx, m_certFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem certificate file");
-                }
-                if (SSL_CTX_use_PrivateKey_file(m_sslctx, m_keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Failed to use pem private key file");
-                }
-                if (SSL_CTX_check_private_key(m_sslctx) != 1)
-                {
-                    ERR_print_errors_fp(stderr);
-                    throw std::runtime_error("Keys do not match!");
-                }
-
-                SSL_CTX_set_verify(m_sslctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verifyCallback);
-
-                SSL_CTX_set_read_ahead(m_sslctx, 1);
-                SSL_CTX_set_cookie_generate_cb(m_sslctx, genCookie);
-                SSL_CTX_set_cookie_verify_cb(m_sslctx, &verifyCookie);
+                throw std::runtime_error("Failed to bind UDP server.");
             }
 
-            m_sockFd = ::socket(AF_INET, SOCK_DGRAM, 0);
+            initSsl();
+        }
+
+        virtual ~SecureUdpServer()
+        {
+            if (m_cSSL != nullptr)
+            {
+                SSL_shutdown(m_cSSL);
+                SSL_free(m_cSSL);
+            }
+            if (m_sslctx != nullptr)
+            {
+                SSL_CTX_free(m_sslctx);
+            }
+        }
+
+        [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
+        {
+            int length = static_cast<int>(len);
+            return SSL_read(m_cSSL, buffer, length);
+        }
+
+        auto send(const void* buffer, size_t len) noexcept -> ssize_t
+        {
+            int length = static_cast<int>(len);
+            return SSL_write(m_cSSL, buffer, length);
+        }
+
+        void accept() noexcept
+        {
+            sockaddr_in addr;
+            while (DTLSv1_listen(m_cSSL, reinterpret_cast<BIO_ADDR*>(&addr)) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                // wait a bit to allow other things to run
+                std::this_thread::sleep_for(std::chrono::milliseconds(ONE_HUNDRED_MILLISEC));
+            }
+
+            SSL_accept(m_cSSL);
+        }
+
+        void initSsl() noexcept
+        {
+            m_bio = BIO_new_dgram(m_fd, BIO_NOCLOSE);
+            timeval tval{.tv_sec = FIVE_SECONDS, .tv_usec = 0};
+            BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &tval);
+            m_cSSL = SSL_new(m_sslctx);
+            SSL_set_bio(m_cSSL, m_bio, m_bio);
+            SSL_set_options(m_cSSL, SSL_OP_COOKIE_EXCHANGE);
+        }
+
+    private:
+
+        void init(const std::string& keyFile, const std::string& certFile) noexcept(false)
+        {
+            OpenSSL_add_ssl_algorithms();
+            SSL_load_error_strings();
+            m_sslctx = SSL_CTX_new(DTLS_server_method());
+            SSL_CTX_set_session_cache_mode(m_sslctx, SSL_SESS_CACHE_OFF);
+
+            if (SSL_CTX_use_certificate_file(m_sslctx, certFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem certificate file");
+            }
+            if (SSL_CTX_use_PrivateKey_file(m_sslctx, keyFile.c_str(), SSL_FILETYPE_PEM) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Failed to use pem private key file");
+            }
+            if (SSL_CTX_check_private_key(m_sslctx) != 1)
+            {
+                ERR_print_errors_fp(stderr);
+                throw std::runtime_error("Keys do not match!");
+            }
+
+            SSL_CTX_set_verify(m_sslctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, Socket::verifyCallback);
+
+            SSL_CTX_set_read_ahead(m_sslctx, 1);
+            SSL_CTX_set_cookie_generate_cb(m_sslctx, Socket::genCookie);
+            SSL_CTX_set_cookie_verify_cb(m_sslctx, &Socket::verifyCookie);
+
+            m_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 #ifdef LINUX
-            if (m_sockFd < 0)
+            if (m_fd < 0)
 #else
-            if (m_sockFd == INVALID_SOCKET)
+            if (m_fd == INVALID_SOCKET)
 #endif
             {
-                throw std::runtime_error("Failed to create socket!");
+                throw std::runtime_error("Failed to create Socket FD");
             }
 
             int opt = 1;
 #ifdef LINUX
-            if (::setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
-            if (::setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
+            if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
 #endif
             {
                 throw std::runtime_error("Failed to setup socket!");
             }
         }
 
-        /**
-         * @brief Construct a new unsecure UDPServer object
-         * 
-         * @param port Port on which to bind TCP server
-         * @param ipAddr IP address on which to bind TCP server
-         */
-        explicit UDPServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
-            : UDPServer("", "")
-        {
-            bind(port, ipAddr);
-        }
-
-        /**
-         * @brief Construct a new UDPServer object
-         * 
-         * @param port Port on which to bind UDP server
-         * @param ipAddr IP address on which to bind UDP server
-         * @param keyFile Key file to use for communication
-         * @param certFile Certifaction file for provided key
-         */
-        UDPServer(const uint16_t port, const std::string& ipAddr, const std::string& keyFile, const std::string& certFile) noexcept(false)
-            : UDPServer(keyFile, certFile)
-        {
-            bind(port, ipAddr);
-
-            if (!m_keyFile.empty() && !m_certFile.empty())
-            {
-                m_bio = BIO_new_dgram(m_sockFd, BIO_NOCLOSE);
-                timeval tval{.tv_sec = FIVE_SECONDS, .tv_usec = 0};
-                BIO_ctrl(m_bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &tval);
-                m_cSSL = SSL_new(m_sslctx);
-                SSL_set_bio(m_cSSL, m_bio, m_bio);
-                SSL_set_options(m_cSSL, SSL_OP_COOKIE_EXCHANGE);
-            }
-        }
-
-        virtual ~UDPServer()
-        {
-#ifdef LINUX
-            static_cast<void>(::shutdown(m_sockFd, SHUT_RDWR));
-            static_cast<void>(::close(m_sockFd));
-#else
-            static_cast<void>(::shutdown(m_sockFd, SD_BOTH));
-            static_cast<void>(::closesocket(m_sockFd));
-#endif
-
-            if (m_cSSL != nullptr)
-            {
-                SSL_shutdown(m_cSSL);
-                SSL_free(m_cSSL);
-            }
-            if (m_sslctx != nullptr)
-            {
-                SSL_CTX_free(m_sslctx);
-            }
-        }
-
-        /**
-         * @brief Accept a UDP connection either secure or unsecure. 
-         * 
-         * NOTE: Unsecure does nothing and this call is not needed
-         * 
-         */
-        void accept() noexcept
-        {
-            if (m_certFile.length() > 0 && m_keyFile.length() > 0)
-            {
-                std::cout << "listening" << std::endl;
-                while (DTLSv1_listen(m_cSSL, reinterpret_cast<BIO_ADDR*>(&m_clientAddr)) <= 0)
-                {
-                    ERR_print_errors_fp(stderr);
-                    // wait a bit to allow other things to run
-                    std::this_thread::sleep_for(std::chrono::milliseconds(ONE_HUNDRED_MILLISEC));
-                }
-
-                SSL_accept(m_cSSL);
-            }
-        }
-
-            /**
-         * @brief Perform a socket read
-         * 
-         * @param buffer Buffer to read the data into
-         * @param len Length of the receive buffer
-         * 
-         * @return ssize_t The length of data received
-         */
-        [[nodiscard]] auto read(void* buffer, size_t len) noexcept -> ssize_t
-        {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval =  SSL_read(m_cSSL, buffer, length);
-            }
-            else
-            {
-                socklen_t socklen = sizeof(m_clientAddr);
-#ifdef LINUX
-                retval =  ::recvfrom(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
-#else
-                retval =  ::recvfrom(m_sockFd, reinterpret_cast<char*>(buffer), len, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &socklen);
-#endif
-            }
-
-            return retval;
-        }
-
-        /**
-         * @brief Send buffer data on the socket
-         * 
-         * @param buffer Buffer of data to send
-         * @param len Length of the data to send
-         * 
-         * @return ssize_t Length of data sent on the socket
-         */
-        [[nodiscard]] auto send(const void* buffer, size_t len) noexcept -> ssize_t
-        {
-            auto retval = 0;
-            if (m_cSSL != nullptr)
-            {
-                int length = static_cast<int>(len);
-                retval = SSL_write(m_cSSL, buffer, length);
-            }
-            else
-            {
-#ifdef LINUX
-                retval =  ::sendto(m_sockFd, buffer, len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
-#else
-                retval =  ::sendto(m_sockFd, reinterpret_cast<const char *>(buffer), len, 0, reinterpret_cast<sockaddr *>(&m_clientAddr), sizeof(m_clientAddr));
-#endif
-            }
-
-            return retval;
-        }
-
-        /**
-         * @brief Bind on the port and IP interface
-         * 
-         * @param port Port on which to bind
-         * @param ipAddr IP interface to use
-         */
-        void bind(const int port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
-        {
-            initAddr(port, ipAddr, m_serverAddr);
-
-            auto ret = ::bind(m_sockFd, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
-#ifdef LINUX
-            if (ret < 0)
-#else
-            if (ret == SOCKET_ERROR)
-#endif
-            {
-                throw std::runtime_error("Failed to bind server!");
-            }
-        }
-
-    private:
-
-            /// @brief UDP server socket file descriptor
-#ifdef LINUX
-        int m_sockFd;
-#else
-        SOCKET m_sockFd;
-        WSADATA m_wsaData;
-#endif
         /// @brief SSL/TLS instance
         SSL* m_cSSL;
         /// @brief SSL/TLS context
         SSL_CTX* m_sslctx;
         /// @brief SSL BIO instance
         BIO* m_bio;
-        /// @brief UDP server address on which to bind
-        sockaddr_in m_serverAddr;
-        /// @brief UDP client address to send data
-        sockaddr_in m_clientAddr;
-        /// @brief Key file to use for communication
-        const std::string m_keyFile;
-        /// @brief Certificate file for key file
-        const std::string m_certFile;
     };
 }
