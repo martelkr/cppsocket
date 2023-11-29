@@ -257,8 +257,8 @@ namespace com::github::socket
             {
                 timeval timeout 
                 {
-                    .tv_sec = milliseconds * MILLISECONDS_PER_SECOND,
-                    .tv_usec = milliseconds / MILLISECONDS_PER_SECOND
+                    .tv_sec = static_cast<time_t>(milliseconds * MILLISECONDS_PER_SECOND),
+                    .tv_usec = static_cast<time_t>(milliseconds / MILLISECONDS_PER_SECOND)
                 };
 
                 retval = select(readfds, writefds, exceptfds, timeout);
@@ -269,12 +269,20 @@ namespace com::github::socket
 
         auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) noexcept -> ssize_t
         {
+#ifdef LINUX
             return ::getsockopt(m_fd, level, optname, optval, optlen);
+#else
+            return ::getsockopt(m_fd, level, optname, reinterpret_cast<char*>(optval), optlen);
+#endif
         }
 
         auto setsockopt(const int level, const int optname, const void *optval, const int optlen) noexcept -> ssize_t
         {
+#ifdef LINUX
             return ::setsockopt(m_fd, level, optname, optval, optlen);
+#else
+            return ::setsockopt(m_fd, level, optname, reinterpret_cast<const char*>(optval), optlen);
+#endif
         }
 
     protected:
@@ -283,10 +291,10 @@ namespace com::github::socket
          * @brief Initialize the Windows socket library one time
          * 
          */
-        void init() const noexcept(false)
+        void init() noexcept(false)
         {
 #ifdef WINDOWS
-            std::call_once(m_onetime, []()
+            std::call_once(m_onetime, [this]()
             {
                 if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
                 {
