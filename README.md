@@ -26,29 +26,45 @@ Compilation has been tested with:
 
 ## Usage
 
+### Socket
+
+Base sockect class for BSD API class methods. 
+
+```cpp
+// default constructor - no socket created because type is unknown
+Socket();
+Socket::initSocket(domain, type, protocol); // creates socket
+
+// create socket from previously created file descriptor
+Socket(int);
+
+// create socket
+Socket(domain, type, protocol);
+```
+
 ### TCP server/client
 
 Create a TCP server object for accepting TCP connections. 
 
 ```cpp
 // default no SSL and not IP/port bound
-TCPServer(void); 
+TcpServer(); 
 
 // default SSL and not IP/port bound
-TCPServer(const std::string& keyFile, const std::string& certFile); 
+TcpServer(const std::string& keyFile, const std::string& certFile); 
 
 // No SSL and IP/port bound
-explicit TCPServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3); 
+explicit TcpServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3); 
 
 /// SSL and IP/port bound
-TCPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile, const int backlog = 3);
+TcpServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile, const int backlog = 3);
 ```
 
 Create a TCP client object to connect to a known TCP server.
 
 ```cpp
-TCPClient(const std::string& ip, const uint16_t port, const bool ssl = false);
-explicit TCPClient(const int fd, SSL_CTX* sslctx = nullptr);
+TcpClient(const std::string& ip, const uint16_t port, const bool ssl = false);
+explicit TcpClient(const int fd, SSL_CTX* sslctx = nullptr);
 ```
 
 For a BSD-like approach, the following sequence can be followed:
@@ -57,19 +73,19 @@ For a BSD-like approach, the following sequence can be followed:
 // Server
 
 // create server socket
-TCPServer server; // add key file and cert file here for secure connection
+TcpServer server; // add key file and cert file here for secure connection
 
 // bind to port 54321 on IP 0.0.0.0
 server.bindAndListen(54321); 
 
-TCPClient client = server.accept();
+TcpClient client = server.accept();
 ```
 
 ```cpp
 // Client
 
 // Connect to TCP server on IP 127.0.0.1 and port 54321
-TCPClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
+TcpClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
 ```
 
 ### UDP server/client
@@ -78,18 +94,18 @@ Create a UDP server object for accepting UDP connections.
 
 ```cpp
 // default constructor creates unbound unsecure UDP server socket
-UDPServer(void);
+UdpServer();
 
 // default DTLS constructor create unbound UDP server socket ready for DTLS
-// NOTE: UDPServer s("", ""); results in unbound unsecure UDP server socket
-UDPServer(const std::string& keyFile, const std::string& certFile);
+// NOTE: UdpServer s("", ""); results in unbound unsecure UDP server socket
+UdpServer(const std::string& keyFile, const std::string& certFile);
 
 // creates unsecure UDP server socket bound to specific port and IP address (default all host IP)
-explicit UDPServer(const uint16_t port, const std::string& ip = "0.0.0.0");
+explicit UdpServer(const uint16_t port, const std::string& ip = "0.0.0.0");
 
 // creates bound UDP server socket ready for DTLS
-// NOTE: UDPServer s("", ""); results in unbound unsecure UDP server socket
-UDPServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile);
+// NOTE: UdpServer s("", ""); results in unbound unsecure UDP server socket
+UdpServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile);
 ```
 
 Create a UDP client object to connect to a known UDP server.
@@ -97,7 +113,7 @@ Create a UDP client object to connect to a known UDP server.
 ```cpp
 
 // default constructor creates unconnected UDP client socket
-UDPClient(void);
+UDPClient();
 
 // creates UDP client socket connected to UDP server
 UDPClient(const std::string& remoteIp, const uint16_t remotePort);
@@ -115,7 +131,7 @@ For a BSD-like approach, the following sequence can be followed:
 // Server
 
 // create server socket
-UDPServer server; // add key file and cert file here for secure connection
+UdpServer server; // add key file and cert file here for secure connection
 
 // bind to port 54321 on IP 0.0.0.0
 server.bind(54321); 
@@ -133,7 +149,7 @@ UDPClient client("127.0.0.1", 54321); // add key file and cert file here for sec
 
 ## Thread Safety
 
-Do not share TCPServer, TCPClient, UDPClient or UDPServer objects across threads unless you provide your own thread safety on the send/read and accept calls.
+Do not share TcpServer, TcpClient, UDPClient or UdpServer objects across threads unless you provide your own thread safety on the send/read and accept calls.
 
 ## Installation
 
