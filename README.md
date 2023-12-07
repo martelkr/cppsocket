@@ -38,8 +38,10 @@ Socket::initSocket(domain, type, protocol); // creates socket
 // create socket from previously created file descriptor
 Socket(int);
 
-// create socket
+// create socket of the given type
 Socket(domain, type, protocol);
+
+
 ```
 
 ### TCP server/client
@@ -47,24 +49,47 @@ Socket(domain, type, protocol);
 Create a TCP server object for accepting TCP connections. 
 
 ```cpp
-// default no SSL and not IP/port bound
+// default no IP/port bound but TCP socket created
 TcpServer(); 
 
-// default SSL and not IP/port bound
-TcpServer(const std::string& keyFile, const std::string& certFile); 
+// TCP socket created, IP/port bound, but not listening
+TcpServer(const uint16_t port, const std::string& ipAddr = "0.0.0.0");
 
-// No SSL and IP/port bound
-explicit TcpServer(const uint16_t port, const std::string& ip = "0.0.0.0", const int backlog = 3); 
-
-/// SSL and IP/port bound
-TcpServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile, const int backlog = 3);
+// TCP socket created, IP/port bound, and listening for clients
+TcpServer(const std::string& ipAddr, const uint16_t port, const int backlog);
 ```
 
 Create a TCP client object to connect to a known TCP server.
 
 ```cpp
-TcpClient(const std::string& ip, const uint16_t port, const bool ssl = false);
-explicit TcpClient(const int fd, SSL_CTX* sslctx = nullptr);
+// default TCP socket created but no server connection
+TcpClient();
+
+// create TcpClient with given TCP socket file descriptor
+TcpClient(const int filedescriptor);
+
+// TcpClient connected to a TcpServer IP/port
+TcpClient(const std::string& ipAddr, const uint16_t port);
+```
+
+Create a SSL TCP Server for accepting SSL TCP clients.
+
+```cpp
+// Create a SSL TCP Server not bound to IP/port
+SecureTcpServer(const std::string& keyFile, const std::string& certFile);
+
+// Create a SSL TCP Server bound to a given port and IP or default IP
+SecureTcpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0");
+```
+
+Create a SSL TCP client for connecting to SSL TCP servers.
+
+```cpp
+// create a SSL TCP client with a given SSL context - used with SecureTcpServer::accept return
+SecureTcpClient(const int filedescriptor, SSL_CTX *sslctx);
+
+// create a SSL TCP client connected to a SSL TCP server
+SecureTcpClient(const std::string& ipAddr, const uint16_t port);
 ```
 
 For a BSD-like approach, the following sequence can be followed:

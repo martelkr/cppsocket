@@ -702,7 +702,7 @@ namespace com::github::socket
             }
         }
 
-        SecureTcpClient(const std::string& ipAddr, const uint16_t port)
+        SecureTcpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
             : Socket()
             , m_cSSL(nullptr)
             , m_sslctx(nullptr)
@@ -816,7 +816,7 @@ namespace com::github::socket
         auto operator=(SecureTcpServer&&) -> SecureTcpServer& = delete;
         SecureTcpServer(SecureTcpServer&) = delete;
 
-        SecureTcpServer(const std::string& keyFile, const std::string& certFile)
+        SecureTcpServer(const std::string& keyFile, const std::string& certFile) noexcept(false)
             : m_sslctx(nullptr)
             , m_keyFile(keyFile)
             , m_certFile(certFile)
@@ -839,7 +839,7 @@ namespace com::github::socket
             init();
         }
 
-        SecureTcpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0")
+        SecureTcpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0") noexcept(false)
             : SecureTcpServer(keyFile, certFile)
         {
             if (!bind(ipAddr, port))

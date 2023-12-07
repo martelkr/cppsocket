@@ -58,7 +58,7 @@ endif()
 
 include_directories(../inc)
 
-add_executable(testcppsocket TestCppSocket.cpp)
+add_executable(testcppsocket Testcppsocket.cpp)
 
 target_include_directories(testcppsocket PRIVATE ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
