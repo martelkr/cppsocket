@@ -95,18 +95,18 @@ namespace com::github::socket
         }
 
 #ifdef LINUX
-        auto accept(sockaddr* address, socklen_t* addrlen) noexcept -> int
+        auto accept(sockaddr* address, socklen_t* addrlen) const noexcept -> int
 #else
-        auto accept(sockaddr* address, socklen_t* addrlen) noexcept -> SOCKET
+        auto accept(sockaddr* address, socklen_t* addrlen) const noexcept -> SOCKET
 #endif
         {
             return ::accept(m_fd, address, addrlen);
         }
 
 #ifdef LINUX
-        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> int
+        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) const noexcept(false) -> int
 #else
-        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> SOCKET
+        [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) const noexcept(false) -> SOCKET
 #endif
         {
             sockaddr_in addr = {};
@@ -118,25 +118,19 @@ namespace com::github::socket
             if (retval != INVALID_SOCKET)
 #endif
             {
-                char* receivedAddr = ::inet_ntoa(addr.sin_addr);
-                if (receivedAddr == reinterpret_cast<char*>(INADDR_NONE))
-                {
-                    throw std::runtime_error("Invalid IP address received on accept.");
-                }
-
-                ipAddr = std::string(receivedAddr);
+                ipAddr = getIpAddress(addr.sin_addr);
                 port = addr.sin_port;
             }
 
             return retval;
         }
 
-        [[nodiscard]] auto bind(const sockaddr* address, int length) noexcept -> ssize_t
+        [[nodiscard]] auto bind(const sockaddr* address, int length) const noexcept -> ssize_t
         {
             return ::bind(m_fd, address, length);
         }
 
-        [[nodiscard]] auto bind(const std::string& ipAddr, const uint16_t port) noexcept(false) -> bool
+        [[nodiscard]] auto bind(const std::string& ipAddr, const uint16_t port) const noexcept(false) -> bool
         {
             sockaddr_in addr = {};
             initAddr(ipAddr, port, addr);
@@ -150,7 +144,7 @@ namespace com::github::socket
             return retval;
         }
 
-        [[nodiscard]] auto connect(const sockaddr* serveraddr, int addrlength) noexcept -> ssize_t
+        [[nodiscard]] auto connect(const sockaddr* serveraddr, int addrlength) const noexcept -> ssize_t
         {
             return ::connect(m_fd, serveraddr, addrlength);
         }
@@ -168,12 +162,12 @@ namespace com::github::socket
             return retval;
         }
 
-        [[nodiscard]] auto listen(int backlog) noexcept -> ssize_t
+        [[nodiscard]] auto listen(int backlog) const noexcept -> ssize_t
         {
             return ::listen(m_fd, backlog);
         }
 
-        [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
+        [[nodiscard]] auto read(void* buffer, size_t length) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::read(m_fd, buffer, length);
@@ -182,7 +176,7 @@ namespace com::github::socket
 #endif
         }
 
-        [[nodiscard]] auto readfrom(void* buffer, size_t length, sockaddr* from, socklen_t* fromlength) noexcept -> ssize_t
+        [[nodiscard]] auto readfrom(void* buffer, size_t length, sockaddr* from, socklen_t* fromlength) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::recvfrom(m_fd, buffer, length, 0, from, fromlength);
@@ -191,27 +185,21 @@ namespace com::github::socket
 #endif
         }
 
-        [[nodiscard]] auto readfrom(void* buffer, size_t length, std::string& ipAddr, uint16_t& port) noexcept(false) -> ssize_t
+        [[nodiscard]] auto readfrom(void* buffer, size_t length, std::string& ipAddr, uint16_t& port) const noexcept(false) -> ssize_t
         {
             sockaddr_in addr = {};
             socklen_t addrlength = sizeof(addr);
             auto retval = readfrom(buffer, length, reinterpret_cast<sockaddr*>(&addr), &addrlength);
             if (retval > 0)
             {
-                char* receivedAddr = ::inet_ntoa(addr.sin_addr);
-                if (receivedAddr == reinterpret_cast<char*>(INADDR_NONE))
-                {
-                    throw std::runtime_error("Invalid IP address received on readfrom.");
-                }
-
-                ipAddr = std::string(receivedAddr);
+                ipAddr = getIpAddress(addr.sin_addr);
                 port = addr.sin_port;
             }
 
             return retval;
         }
 
-        auto send(const void* buffer, size_t length) noexcept -> ssize_t
+        auto send(const void* buffer, size_t length) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::send(m_fd, buffer, length, 0);
@@ -220,7 +208,7 @@ namespace com::github::socket
 #endif
         }
 
-        auto sendto(const void* buffer, size_t length, const sockaddr* toaddr, int tolength) noexcept -> ssize_t
+        auto sendto(const void* buffer, size_t length, const sockaddr* toaddr, int tolength) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::sendto(m_fd, buffer, length, 0, toaddr, tolength);
@@ -229,24 +217,24 @@ namespace com::github::socket
 #endif
         }
 
-        auto sendto(const void* buffer, size_t length, const std::string& ipAddr, const uint16_t port) noexcept(false) -> ssize_t
+        auto sendto(const void* buffer, size_t length, const std::string& ipAddr, const uint16_t port) const noexcept(false) -> ssize_t
         {
             sockaddr_in addr = {};
             initAddr(ipAddr, port, addr);
             return sendto(buffer, length, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
         }
 
-        [[nodiscard]] auto select(fd_set* readfds, fd_set* writefds, fd_set* exceptfds, timeval* timeout) noexcept -> ssize_t
+        [[nodiscard]] auto select(fd_set* readfds, fd_set* writefds, fd_set* exceptfds, timeval* timeout) const noexcept -> ssize_t
         {
             return ::select(m_fd, readfds, writefds, exceptfds, timeout);
         }
 
-        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, timeval& timeout) noexcept -> ssize_t
+        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, timeval& timeout) const noexcept -> ssize_t
         {
             return ::select(m_fd, &readfds, &writefds, &exceptfds, &timeout);
         }
 
-        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, const int milliseconds) noexcept -> ssize_t
+        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, const int milliseconds) const noexcept -> ssize_t
         {
             ssize_t retval;
             if (milliseconds < 0)
@@ -267,7 +255,7 @@ namespace com::github::socket
             return retval;
         }
 
-        auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) noexcept -> ssize_t
+        auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::getsockopt(m_fd, level, optname, optval, optlen);
@@ -276,7 +264,7 @@ namespace com::github::socket
 #endif
         }
 
-        auto setsockopt(const int level, const int optname, const void *optval, const int optlen) noexcept -> ssize_t
+        auto setsockopt(const int level, const int optname, const void *optval, const int optlen) const noexcept -> ssize_t
         {
 #ifdef LINUX
             return ::setsockopt(m_fd, level, optname, optval, optlen);
@@ -286,6 +274,17 @@ namespace com::github::socket
         }
 
     protected:
+
+        [[nodiscard]] static auto getIpAddress(const in_addr inaddr) noexcept(false) -> std::string
+        {
+            char* receivedAddr = ::inet_ntoa(inaddr); // NOLINT
+            if (receivedAddr == reinterpret_cast<char*>(INADDR_NONE)) // NOLINT
+            {
+                throw std::runtime_error("Invalid IP address received on readfrom.");
+            }
+
+            return {receivedAddr};
+        }
 
         /**
          * @brief Initialize the Windows socket library one time
@@ -311,7 +310,7 @@ namespace com::github::socket
          * @param port port value
          * @param addr Address structure to fill out
          */
-        void initAddr(const std::string& ipAddr, const int port, sockaddr_in& addr) const noexcept(false)
+        static void initAddr(const std::string& ipAddr, const int port, sockaddr_in& addr) noexcept(false)
         {
             addr.sin_family = AF_INET;
             if (ipAddr.empty() || ipAddr == "0.0.0.0")
@@ -409,22 +408,22 @@ namespace com::github::socket
             return 1;
         }
 
-        constexpr static unsigned int MILLISECONDS_PER_SECOND = 1000;
+        constexpr static unsigned int MILLISECONDS_PER_SECOND = 1000; // NOLINT
         constexpr static unsigned int COOKIE_LEN = 16; // NOLINT
         constexpr static unsigned int ONE_HUNDRED_MILLISEC = 100; // NOLINT
         constexpr static unsigned int FIVE_SECONDS = 5; // NOLINT
 
         static std::array<unsigned char, COOKIE_LEN> m_cookie; // NOLINT
 #ifdef LINUX
-        int m_fd;
+        int m_fd; // NOLINT
 #else
-        SOCKET m_fd;
-        WSADATA m_wsaData;
-        std::once_flag m_onetime;
+        SOCKET m_fd; // NOLINT
+        WSADATA m_wsaData; // NOLINT
+        std::once_flag m_onetime; // NOLINT
 #endif
     };
 
-    std::array<unsigned char, Socket::COOKIE_LEN> Socket::m_cookie = {};
+    std::array<unsigned char, Socket::COOKIE_LEN> Socket::m_cookie = {}; // NOLINT
 
     class TcpClient : public Socket
     {
@@ -466,8 +465,6 @@ namespace com::github::socket
                 throw std::runtime_error("Failed to connect to server!");
             }
         }
-
-        virtual ~TcpClient() = default;
 
     protected:
 
@@ -516,8 +513,6 @@ namespace com::github::socket
                 throw std::runtime_error("Failed to listen on TCP server.");
             }
         }
-
-        virtual ~TcpServer() = default;
 
         /**
          * @brief Accept a new TCP connection either secure or unsecure
@@ -703,8 +698,7 @@ namespace com::github::socket
         }
 
         SecureTcpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
-            : Socket()
-            , m_cSSL(nullptr)
+            : m_cSSL(nullptr)
             , m_sslctx(nullptr)
         {
             OpenSSL_add_ssl_algorithms();
@@ -741,7 +735,7 @@ namespace com::github::socket
             }
         }
 
-        virtual ~SecureTcpClient()
+        ~SecureTcpClient() override
         {
             if (m_cSSL != nullptr)
             {
@@ -816,7 +810,7 @@ namespace com::github::socket
         auto operator=(SecureTcpServer&&) -> SecureTcpServer& = delete;
         SecureTcpServer(SecureTcpServer&) = delete;
 
-        SecureTcpServer(const std::string& keyFile, const std::string& certFile) noexcept(false)
+        SecureTcpServer(const std::string& keyFile, const std::string& certFile) noexcept(false) // NOLINT
             : m_sslctx(nullptr)
             , m_keyFile(keyFile)
             , m_certFile(certFile)
@@ -848,7 +842,7 @@ namespace com::github::socket
             }
         }
 
-        virtual ~SecureTcpServer()
+        ~SecureTcpServer() override
         {
             if (m_sslctx != nullptr)
             {
@@ -878,7 +872,7 @@ namespace com::github::socket
 
             initSecureFiles();
 
-            return SecureTcpClient(fileD, m_sslctx);
+            return {fileD, m_sslctx};
         }
 
         /**
@@ -902,7 +896,7 @@ namespace com::github::socket
 
             initSecureFiles();
 
-            return SecureTcpClient(fileD, m_sslctx);
+            return {fileD, m_sslctx};
         }
 
     private:
@@ -968,8 +962,7 @@ namespace com::github::socket
         SecureUdpClient(SecureUdpClient&) = delete;
 
         SecureUdpClient(const std::string& keyFile, const std::string& certFile)
-            : Socket()
-            , m_cSSL(nullptr)
+            : m_cSSL(nullptr)
             , m_sslctx(nullptr)
             , m_bio(nullptr)
         {
@@ -990,7 +983,7 @@ namespace com::github::socket
             }
         }
 
-        virtual ~SecureUdpClient()
+        ~SecureUdpClient() override
         {
             if (m_cSSL != nullptr)
             {
@@ -1094,8 +1087,7 @@ namespace com::github::socket
         SecureUdpServer(SecureUdpServer&) = delete;
 
         SecureUdpServer(const std::string& keyFile, const std::string& certFile)
-            : Socket()
-            , m_cSSL(nullptr)
+            : m_cSSL(nullptr)
             , m_sslctx(nullptr)
             , m_bio(nullptr)
         {
@@ -1113,7 +1105,7 @@ namespace com::github::socket
             initSsl();
         }
 
-        virtual ~SecureUdpServer()
+        ~SecureUdpServer() override
         {
             if (m_cSSL != nullptr)
             {
