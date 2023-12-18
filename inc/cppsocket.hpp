@@ -625,7 +625,7 @@ namespace com::github::socket
             UdpServer::init();
         }
 
-        UdpServer(const std::string& ipAddr, const uint16_t port) noexcept(false)
+        explicit UdpServer(const uint16_t port, const std::string &ipAddr = "0.0.0.0") noexcept(false)
             : UdpServer()
         {
             if (!bind(ipAddr, port))
