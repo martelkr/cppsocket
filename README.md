@@ -97,12 +97,10 @@ For a BSD-like approach, the following sequence can be followed:
 ```cpp
 // Server
 
-// create server socket
-TcpServer server; // add key file and cert file here for secure connection
+// create server socket and bind to all IP and 54321 port
+TcpServer server(54321);
 
-// bind to port 54321 on IP 0.0.0.0
-server.bindAndListen(54321); 
-
+// wait for a client connection
 TcpClient client = server.accept();
 ```
 
@@ -110,7 +108,7 @@ TcpClient client = server.accept();
 // Client
 
 // Connect to TCP server on IP 127.0.0.1 and port 54321
-TcpClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
+TcpClient client("127.0.0.1", 54321);
 ```
 
 ### UDP server/client
@@ -118,36 +116,21 @@ TcpClient client("127.0.0.1", 54321); // add key file and cert file here for sec
 Create a UDP server object for accepting UDP connections. 
 
 ```cpp
-// default constructor creates unbound unsecure UDP server socket
-UdpServer();
+// default no IP/port bound but UDP socket created
+UdpServer(); 
 
-// default DTLS constructor create unbound UDP server socket ready for DTLS
-// NOTE: UdpServer s("", ""); results in unbound unsecure UDP server socket
-UdpServer(const std::string& keyFile, const std::string& certFile);
-
-// creates unsecure UDP server socket bound to specific port and IP address (default all host IP)
-explicit UdpServer(const uint16_t port, const std::string& ip = "0.0.0.0");
-
-// creates bound UDP server socket ready for DTLS
-// NOTE: UdpServer s("", ""); results in unbound unsecure UDP server socket
-UdpServer(const uint16_t port, const std::string& ip, const std::string& keyFile, const std::string& certFile);
+// UDP server socket created, IP/port bound
+UdpServer(const uint16_t port, const std::string &ipAddr = "0.0.0.0");
 ```
 
 Create a UDP client object to connect to a known UDP server.
 
 ```cpp
+// default UDP socket created but no server connection
+UdpClient();
 
-// default constructor creates unconnected UDP client socket
-UDPClient();
-
-// creates UDP client socket connected to UDP server
-UDPClient(const std::string& remoteIp, const uint16_t remotePort);
-
-// creates unconnected UDP client socket for DTLS communication
-UDPClient(const std::string& keyFile, const std::string& certFile);
-
-// created UDP client socket connected to UDP server using DTLS
-UDPClient(const std::string& remoteIp, const uint16_t remotePort, const std::string& keyFile, const std::string& certFile);
+// UdpClient connected to a UdpServer IP/port
+UdpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
 ```
 
 For a BSD-like approach, the following sequence can be followed:
@@ -155,26 +138,20 @@ For a BSD-like approach, the following sequence can be followed:
 ```cpp
 // Server
 
-// create server socket
-UdpServer server; // add key file and cert file here for secure connection
-
-// bind to port 54321 on IP 0.0.0.0
-server.bind(54321); 
-
-// following not needed for unsecure connection but is needed for DTLS connection
-server.accept();
+// create server socket bound to all IP and 54321 port
+UdpServer server(54321);
 ```
 
 ```cpp
 // Client
 
 // Connect to UDP server on IP 127.0.0.1 and port 54321
-UDPClient client("127.0.0.1", 54321); // add key file and cert file here for secure connection
+UDPClient client("127.0.0.1", 54321);
 ```
 
 ## Thread Safety
 
-Do not share TcpServer, TcpClient, UDPClient or UdpServer objects across threads unless you provide your own thread safety on the send/read and accept calls.
+Do not share any of the socket objects across threads unless you provide your own thread safety on the send/read and accept calls.
 
 ## Installation
 

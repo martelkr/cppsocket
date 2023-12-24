@@ -2,7 +2,11 @@ name: cppcheck
 
 on:
   push:
-  pull_request:
+    branches: [ "main" ]
+    
+permissions:
+    actions: write
+    contents: write
 
 jobs:
   Linux-cppcheck:
@@ -15,10 +19,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN}}
           enable: all
-          inconclusive: enable
           inline_suppression: enable
           force_language: c++
           platform: unix64
           std: c++20
-          output_file: cppcheck_output.txt
-          other_options: -I inc --file-filter=*cppsocket* --verbose --suppress=missingIncludeSystem
+          other_options: -I inc --verbose --suppress=missingIncludeSystem

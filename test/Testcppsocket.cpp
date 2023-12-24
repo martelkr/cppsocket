@@ -103,7 +103,7 @@ TEST(Unsecure, UDP)
 {
     std::cout << "Start UDP Test 1" << std::endl;
 
-    UdpServer server(IP_ADDR, UDP_TEST1_SERVER_PORT);
+    UdpServer server(UDP_TEST1_SERVER_PORT, IP_ADDR);
 
     auto testThread = std::jthread([]{
         UdpClient client(IP_ADDR, UDP_TEST1_SERVER_PORT);
