@@ -27,7 +27,6 @@ static int gargc{0};
 static char** gargv = nullptr;
 #endif
 
-using com::github::socket::Socket;
 using com::github::socket::TcpClient;
 using com::github::socket::TcpServer;
 using com::github::socket::UdpClient;
@@ -140,7 +139,6 @@ TEST(Unsecure, UDP)
     ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     ret = server.send(TEST_STRING2.c_str(), TEST_STRING2.length());
-    std::cout << ret << ":" << strerror(errno) << std::endl;
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
     std::cout << "Server sent: " << TEST_STRING2 << std::endl;
