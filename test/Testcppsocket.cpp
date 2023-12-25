@@ -27,7 +27,6 @@ static int gargc{0};
 static char** gargv = nullptr;
 #endif
 
-using com::github::socket::Socket;
 using com::github::socket::TcpClient;
 using com::github::socket::TcpServer;
 using com::github::socket::UdpClient;
@@ -103,7 +102,7 @@ TEST(Unsecure, UDP)
 {
     std::cout << "Start UDP Test 1" << std::endl;
 
-    UdpServer server(IP_ADDR, UDP_TEST1_SERVER_PORT);
+    UdpServer server(UDP_TEST1_SERVER_PORT, IP_ADDR);
 
     auto testThread = std::jthread([]{
         UdpClient client(IP_ADDR, UDP_TEST1_SERVER_PORT);
@@ -140,7 +139,6 @@ TEST(Unsecure, UDP)
     ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
 
     ret = server.send(TEST_STRING2.c_str(), TEST_STRING2.length());
-    std::cout << ret << ":" << strerror(errno) << std::endl;
     ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
 
     std::cout << "Server sent: " << TEST_STRING2 << std::endl;
