@@ -3,6 +3,8 @@ name: cppcheck
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "*" ]
     
 permissions:
     actions: write
@@ -15,12 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: cppcheck
-        uses: chmorgan/cppcheck-action-jackson@main
+        uses: tonybaloney/cppcheck-action@master
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN}}
-          enable: all
-          inline_suppression: enable
-          force_language: c++
-          platform: unix64
-          std: c++20
-          other_options: -I inc --verbose --suppress=missingIncludeSystem
+          opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20
