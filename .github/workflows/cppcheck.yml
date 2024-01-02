@@ -13,9 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: testing
-        run: ls -lat && pwd
-
-      - uses: tonybaloney/cppcheck-action@master
+      - uses: Bedzior/cppcheck-action@v1.0
         with:
-          opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20 test/Testcppsocket.cpp
+          include directories: inc
+          path: test
+          verbose: true
