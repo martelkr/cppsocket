@@ -13,8 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: c-linter
-        uses: tonybaloney/cppcheck-action@master
+      - name: testing
+        run: ls -lat && pwd
+
+      - uses: tonybaloney/cppcheck-action@master
         with:
           opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20
           path: test
