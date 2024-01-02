@@ -18,5 +18,4 @@ jobs:
 
       - uses: tonybaloney/cppcheck-action@master
         with:
-          opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20
-          path: test
+          opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20 test/Testcppsocket.cpp
