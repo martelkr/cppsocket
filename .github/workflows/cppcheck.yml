@@ -4,19 +4,14 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "*" ]
+    branches: [ "main" ]
     
-permissions:
-    actions: write
-    contents: write
-
 jobs:
   Linux-cppcheck:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: cppcheck
+      - name: c-linter
         uses: tonybaloney/cppcheck-action@master
         with:
           opts: --enable=all -I inc --verbose --suppress=missingIncludeSystem --platform=unix64 --inline-suppr --std=c++20 test/Testcppsocket.cpp
