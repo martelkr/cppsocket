@@ -38,10 +38,8 @@ Socket::initSocket(domain, type, protocol); // creates socket
 // create socket from previously created file descriptor
 Socket(int);
 
-// create socket of the given type
+// create socket of the given type - NOTE: This returns a Socket class type that is not a Tcp or Udp socket class
 Socket(domain, type, protocol);
-
-
 ```
 
 ### TCP server/client
@@ -92,18 +90,6 @@ SecureTcpClient(const int filedescriptor, SSL_CTX *sslctx);
 SecureTcpClient(const std::string& ipAddr, const uint16_t port);
 ```
 
-For a BSD-like approach, the following sequence can be followed:
-
-```cpp
-// Server
-
-// create server socket and bind to all IP and 54321 port
-TcpServer server(54321);
-
-// wait for a client connection
-TcpClient client = server.accept();
-```
-
 ```cpp
 // Client
 
@@ -133,20 +119,24 @@ UdpClient();
 UdpClient(const std::string& ipAddr, const uint16_t port) noexcept(false)
 ```
 
-For a BSD-like approach, the following sequence can be followed:
+Create a SSL UDP Server for accepting SSL UDP clients.
 
 ```cpp
-// Server
+// Create a SSL UDP Server not bound to IP/port
+SecureUdpServer(const std::string& keyFile, const std::string& certFile);
 
-// create server socket bound to all IP and 54321 port
-UdpServer server(54321);
+// Create a SSL UDP Server bound to a given port and IP or default IP
+SecureUdpServer(const std::string& keyFile, const std::string& certFile, const uint16_t port, const std::string& ipAddr = "0.0.0.0");
 ```
 
-```cpp
-// Client
+Create a SSL UDP client for connecting to SSL UDP servers.
 
-// Connect to UDP server on IP 127.0.0.1 and port 54321
-UDPClient client("127.0.0.1", 54321);
+```cpp
+// Create a SSL UDP Client not attempting to connect to a SSL UDP Server (need to call SecureUdpClient::connect(IP, port) to connect)
+SecureUdpClient(const std::string& keyFile, const std::string& certFile);
+
+// create a SSL UDP client connected to a given SSL UDP server waiting in a SecureUdpServer::accept call on the given IP and port
+SecureUdpClient(const std::string& ipAddr, const uint16_t port, const std::string& keyFile, const std::string& certFile);
 ```
 
 ## Thread Safety
