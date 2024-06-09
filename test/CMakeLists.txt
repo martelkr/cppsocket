@@ -1,8 +1,9 @@
 if(CMAKE_COMPILER_IS_GNUCXX)
     if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
         message(STATUS "Code Coverage")
-        set(CMAKE_CXX_FLAGS "-g -O0 -Wall -Werror --coverage")
-        set(CMAKE_C_FLAGS "-g -O0 -Wall -Werror --coverage")
+    
+        set(CMAKE_CXX_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage --coverage")
+        set(CMAKE_C_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage --coverage")
     elseif(CMAKE_BUILD_TYPE STREQUAL "ASAN")
         message(STATUS "Address sanitization")
         set(CMAKE_CXX_FLAGS "-O3 -Wall -Werror -fsanitize=address -static-libasan")

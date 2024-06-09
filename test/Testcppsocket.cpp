@@ -27,6 +27,7 @@ static int gargc{0};
 static char** gargv = nullptr;
 #endif
 
+using com::github::socket::Socket;
 using com::github::socket::TcpClient;
 using com::github::socket::TcpServer;
 using com::github::socket::UdpClient;
@@ -74,6 +75,65 @@ TEST(Unsecure, TCP)
         ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
     });
 
+    std::string clientIp;
+    uint16_t clientPort = 0;
+    std::cout << "Accepting" << std::endl;
+    Socket& serverSocket = static_cast<Socket&>(server);
+    auto acceptSocket = serverSocket.accept(clientIp, clientPort);
+    ASSERT_GT(acceptSocket, 0);
+    TcpClient client(acceptSocket);
+
+    ASSERT_STREQ(clientIp.c_str(), IP_ADDR.c_str());
+    ASSERT_GT(clientPort, 0);
+
+    std::cout << "Server accepted" << std::endl;
+
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = client.read(buffer.data(), buffer.size());
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+    buffer[ret] = '\0';
+
+    std::cout << "Server received: " << buffer.data() << std::endl;
+
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
+
+    ret = client.send(TEST_STRING2.c_str(), TEST_STRING2.length());
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+    std::cout << "Server sent: " << TEST_STRING2 << std::endl;
+
+    std::cout << "********************** TCP Unsecure Test PASSED *******************" << std::endl;
+}
+
+// NOLINTNEXTLINE
+TEST(Unsecure2, TCP)
+{
+    std::cout << "Start TCP Test 1" << std::endl;
+    TcpServer server("0.0.0.0", TCP_TEST1_SERVER_PORT, 5);
+    ASSERT_EQ(server.listen(1), 0);
+
+    auto testThread = std::jthread([]{
+        TcpClient client(IP_ADDR, TCP_TEST1_SERVER_PORT);
+
+        std::cout << "Client connected" << std::endl;
+
+        auto ret = client.send(TEST_STRING1.c_str(), TEST_STRING1.length());
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+        std::cout << "Client sent: " << TEST_STRING1 << std::endl;
+
+        std::array<char, BUFFER_LEN> buffer = {};
+        ret = client.read(buffer.data(), buffer.size());
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+        buffer[ret] = '\0';
+
+        std::cout << "Client received: " << buffer.data() << std::endl;
+
+        ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
+    });
+
     std::cout << "Accepting" << std::endl;
     TcpClient client = server.accept();
 
@@ -94,7 +154,7 @@ TEST(Unsecure, TCP)
 
     std::cout << "Server sent: " << TEST_STRING2 << std::endl;
 
-    std::cout << "********************** TCP Unsecure Test PASSED *******************" << std::endl;
+    std::cout << "********************** TCP Unsecure Test 2 PASSED *******************" << std::endl;
 }
 
 // NOLINTNEXTLINE
@@ -146,6 +206,63 @@ TEST(Unsecure, UDP)
     testThread.join();
 
     std::cout << "********************** UDP Unsecure Test PASSED *******************" << std::endl;
+}
+
+// NOLINTNEXTLINE
+TEST(Unsecure2, UDP)
+{
+    std::cout << "Start UDP Test 1" << std::endl;
+
+    UdpServer server(UDP_TEST1_SERVER_PORT, IP_ADDR);
+
+    auto testThread = std::jthread([]{
+        UdpClient client;
+
+        std::cout << "Client connected" << std::endl;
+
+        auto ret = client.sendto(TEST_STRING1.c_str(), TEST_STRING1.length(), IP_ADDR, UDP_TEST1_SERVER_PORT);
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+        std::cout << "Client sent: " << TEST_STRING1 << std::endl;
+
+        std::string readfromIp;
+        uint16_t readfromPort;
+        std::array<char, BUFFER_LEN> buffer = {};
+        ret = client.readfrom(buffer.data(), buffer.size(), readfromIp, readfromPort);
+        ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+        ASSERT_STREQ(readfromIp.c_str(), IP_ADDR.c_str());
+        ASSERT_GT(readfromPort, 0);
+
+        buffer[ret] = '\0';
+
+        std::cout << "Client received: " << buffer.data() << std::endl;
+
+        ASSERT_EQ(TEST_STRING2.compare(buffer.data()), 0);
+    });
+
+    // wait for client to start
+    std::this_thread::sleep_for(std::chrono::milliseconds(ONE_HUNDRED_MSECS));
+
+    sockaddr_in readAddr = {};
+    socklen_t len = sizeof(readAddr);
+    std::array<char, BUFFER_LEN> buffer = {};
+    auto ret = server.readfrom(buffer.data(), buffer.size(), reinterpret_cast<sockaddr*>(&readAddr), &len);
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING1.length()));
+
+    buffer[ret] = '\0';
+
+    std::cout << "Server received: " << buffer.data() << std::endl;
+
+    ASSERT_EQ(TEST_STRING1.compare(buffer.data()), 0);
+
+    ret = server.sendto(TEST_STRING2.c_str(), TEST_STRING2.length(), reinterpret_cast<sockaddr*>(&readAddr), len);
+    ASSERT_EQ(ret, static_cast<int>(TEST_STRING2.length()));
+
+    std::cout << "Server sent: " << TEST_STRING2 << std::endl;
+
+    testThread.join();
+
+    std::cout << "********************** UDP Unsecure Test 2 PASSED *******************" << std::endl;
 }
 
 // NOLINTNEXTLINE
