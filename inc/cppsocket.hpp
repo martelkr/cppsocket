@@ -227,15 +227,17 @@ namespace com::github::socket
         [[nodiscard]] auto selectWrite(timeval& timeout) const noexcept -> bool
         {
             fd_set set;
+            FD_ZERO(&set);
             FD_SET(m_fd, &set);
-            return ::select(m_fd+1, nullptr, &set, nullptr, &timeout);
+            return (::select(m_fd+1, nullptr, &set, nullptr, &timeout) == 1);
         }
 
         [[nodiscard]] auto selectRead(timeval& timeout) const noexcept -> bool
         {
             fd_set set;
+            FD_ZERO(&set);
             FD_SET(m_fd, &set);
-            return ::select(m_fd+1, &set, nullptr, nullptr, &timeout);
+            return (::select(m_fd+1, &set, nullptr, nullptr, &timeout) == 1);
         }
 
         auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) const noexcept -> ssize_t
@@ -284,7 +286,7 @@ namespace com::github::socket
          */
         void init() noexcept(false)
         {
-#if (defined __MSC_VER) || (defined _WIN32)
+#ifdef _WIN32
             std::call_once(m_onetime, [this]()
             {
                 if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
