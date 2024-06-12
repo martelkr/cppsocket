@@ -284,7 +284,7 @@ namespace com::github::socket
          */
         void init() noexcept(false)
         {
-#ifdef __MSC_VER
+#if (defined __MSC_VER) || (defined _WIN32)
             std::call_once(m_onetime, [this]()
             {
                 if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 

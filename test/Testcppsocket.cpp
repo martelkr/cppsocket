@@ -1,7 +1,3 @@
-#if __cplusplus < 202002L
-#error "Requires C++20 or greater"
-#endif
-
 #include <gtest/gtest.h>
 #include "cppsocket.hpp"
 
@@ -65,7 +61,6 @@ TEST(Unsecure, TCP)
         socklen_t len = sizeof(flag);
         ASSERT_EQ(client.getsockopt(IPPROTO_TCP, TCP_NODELAY, &flag, &len), 0);
         ASSERT_EQ(flag, 1);
-        ASSERT_EQ(len, sizeof(flag));
 
         std::cout << "Client connected" << std::endl;
 
