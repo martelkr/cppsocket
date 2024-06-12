@@ -11,12 +11,6 @@ SET(LICENSE "MIT")
 
 project(cppsocket VERSION ${project_version} LANGUAGES CXX)
 
-if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_definitions(-DLINUX)
-else()
-    add_definitions(-DWINDOWS)
-endif()
-
 include_directories(inc)
 
 enable_testing()

@@ -1,5 +1,5 @@
 
-#ifdef LINUX
+#ifdef __GNUC__
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -46,7 +46,7 @@ namespace com::github::socket
         Socket(Socket&) = delete;
 
         Socket() noexcept(false)
-#ifdef LINUX
+#ifdef __GNUC__
             : m_fd(-1)
 #else
             : m_fd(INVALID_SOCKET)
@@ -55,7 +55,7 @@ namespace com::github::socket
             init();
         }
 
-#ifdef LINUX
+#ifdef __GNUC__
         explicit Socket(const int filedescriptor) noexcept
 #else
         explicit Socket(SOCKET filedescriptor) noexcept
@@ -72,7 +72,7 @@ namespace com::github::socket
 
         virtual ~Socket()
         {
-#ifdef LINUX
+#ifdef __GNUC__
             static_cast<void>(::shutdown(m_fd, SHUT_RDWR));
             static_cast<void>(::close(m_fd));
 #else
@@ -84,7 +84,7 @@ namespace com::github::socket
         void initSocket(const int domain, const int type, const int protocol) noexcept(false)
         {
             m_fd = ::socket(domain, type, protocol);
-#ifdef LINUX
+#ifdef __GNUC__
             if (m_fd < 0)
 #else
             if (m_fd == INVALID_SOCKET)
@@ -94,7 +94,7 @@ namespace com::github::socket
             }
         }
 
-#ifdef LINUX
+#ifdef __GNUC__
         auto accept(sockaddr* address, socklen_t* addrlen) const noexcept -> int
 #else
         auto accept(sockaddr* address, socklen_t* addrlen) const noexcept -> SOCKET
@@ -103,7 +103,7 @@ namespace com::github::socket
             return ::accept(m_fd, address, addrlen);
         }
 
-#ifdef LINUX
+#ifdef __GNUC__
         [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) const noexcept(false) -> int
 #else
         [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) const noexcept(false) -> SOCKET
@@ -112,7 +112,7 @@ namespace com::github::socket
             sockaddr_in addr = {};
             socklen_t length = sizeof(addr);
             auto retval = accept(reinterpret_cast<sockaddr*>(&addr), &length);
-#ifdef LINUX
+#ifdef __GNUC__
             if (retval > 0)
 #else
             if (retval != INVALID_SOCKET)
@@ -169,7 +169,7 @@ namespace com::github::socket
 
         [[nodiscard]] auto read(void* buffer, size_t length) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::read(m_fd, buffer, length);
 #else
             return ::recv(m_fd, reinterpret_cast<char*>(buffer), length, 0);
@@ -178,7 +178,7 @@ namespace com::github::socket
 
         [[nodiscard]] auto readfrom(void* buffer, size_t length, sockaddr* from, socklen_t* fromlength) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::recvfrom(m_fd, buffer, length, 0, from, fromlength);
 #else
             return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, from, fromlength);
@@ -201,7 +201,7 @@ namespace com::github::socket
 
         auto send(const void* buffer, size_t length) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::send(m_fd, buffer, length, 0);
 #else
             return ::send(m_fd, reinterpret_cast<const char*>(buffer), length, 0);
@@ -210,7 +210,7 @@ namespace com::github::socket
 
         auto sendto(const void* buffer, size_t length, const sockaddr* toaddr, int tolength) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::sendto(m_fd, buffer, length, 0, toaddr, tolength);
 #else
             return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, toaddr, tolength);
@@ -224,40 +224,25 @@ namespace com::github::socket
             return sendto(buffer, length, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
         }
 
-        [[nodiscard]] auto select(fd_set* readfds, fd_set* writefds, fd_set* exceptfds, timeval* timeout) const noexcept -> ssize_t
+        [[nodiscard]] auto selectWrite(timeval& timeout) const noexcept -> bool
         {
-            return ::select(m_fd, readfds, writefds, exceptfds, timeout);
+            fd_set set;
+            FD_ZERO(&set);
+            FD_SET(m_fd, &set);
+            return (::select(m_fd+1, nullptr, &set, nullptr, &timeout) == 1);
         }
 
-        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, timeval& timeout) const noexcept -> ssize_t
+        [[nodiscard]] auto selectRead(timeval& timeout) const noexcept -> bool
         {
-            return ::select(m_fd, &readfds, &writefds, &exceptfds, &timeout);
-        }
-
-        [[nodiscard]] auto select(fd_set& readfds, fd_set& writefds, fd_set& exceptfds, const int milliseconds) const noexcept -> ssize_t
-        {
-            ssize_t retval;
-            if (milliseconds < 0)
-            {
-                retval = ::select(m_fd, &readfds, &writefds, &exceptfds, nullptr);
-            }
-            else
-            {
-                timeval timeout 
-                {
-                    .tv_sec = static_cast<time_t>(milliseconds * MILLISECONDS_PER_SECOND),
-                    .tv_usec = static_cast<time_t>(milliseconds / MILLISECONDS_PER_SECOND)
-                };
-
-                retval = select(readfds, writefds, exceptfds, timeout);
-            }
-
-            return retval;
+            fd_set set;
+            FD_ZERO(&set);
+            FD_SET(m_fd, &set);
+            return (::select(m_fd+1, &set, nullptr, nullptr, &timeout) == 1);
         }
 
         auto getsockopt(const int level, const int optname, void *optval, socklen_t* optlen) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::getsockopt(m_fd, level, optname, optval, optlen);
 #else
             return ::getsockopt(m_fd, level, optname, reinterpret_cast<char*>(optval), optlen);
@@ -266,11 +251,20 @@ namespace com::github::socket
 
         auto setsockopt(const int level, const int optname, const void *optval, const int optlen) const noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::setsockopt(m_fd, level, optname, optval, optlen);
 #else
             return ::setsockopt(m_fd, level, optname, reinterpret_cast<const char*>(optval), optlen);
 #endif
+        }
+
+#ifdef __GNUC__
+        auto getFd() const noexcept -> int
+#else
+        auto getFd() const noexcept -> SOCKET
+#endif
+        {
+            return m_fd;
         }
 
     protected:
@@ -292,7 +286,7 @@ namespace com::github::socket
          */
         void init() noexcept(false)
         {
-#ifdef WINDOWS
+#ifdef _WIN32
             std::call_once(m_onetime, [this]()
             {
                 if (::WSAStartup(MAKEWORD(2, 2), &m_wsaData) != 0) 
@@ -414,7 +408,7 @@ namespace com::github::socket
         constexpr static unsigned int FIVE_SECONDS = 5; // NOLINT
 
         static std::array<unsigned char, COOKIE_LEN> m_cookie; // NOLINT
-#ifdef LINUX
+#ifdef __GNUC__
         int m_fd; // NOLINT
 #else
         SOCKET m_fd; // NOLINT
@@ -456,7 +450,7 @@ namespace com::github::socket
             initAddr(ipAddr, port, addr);
 
             auto ret = ::connect(m_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-#ifdef LINUX
+#ifdef __GNUC__
             if (ret < 0)
 #else
             if (ret == SOCKET_ERROR)
@@ -471,7 +465,7 @@ namespace com::github::socket
         void init() noexcept(false)
         {
             int flag = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
 #else
             if (setsockopt(IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
@@ -524,7 +518,7 @@ namespace com::github::socket
             sockaddr_in client = {};
             socklen_t clientLen = sizeof(client);
             auto fileD = Socket::accept(reinterpret_cast<sockaddr*>(&client), &clientLen);
-#ifdef LINUX
+#ifdef __GNUC__
             if (fileD < 0)
 #else
             if (fileD == INVALID_SOCKET)
@@ -541,7 +535,7 @@ namespace com::github::socket
         void init() noexcept(false)
         {
             int opt = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
@@ -590,7 +584,7 @@ namespace com::github::socket
         [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
         {
             socklen_t fromlength = sizeof(m_serverAddr);
-#ifdef LINUX
+#ifdef __GNUC__
             return ::recvfrom(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), &fromlength);
 #else
             return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), &fromlength);
@@ -599,7 +593,7 @@ namespace com::github::socket
 
         auto send(const void* buffer, size_t length) noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::sendto(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
 #else
             return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_serverAddr), sizeof(m_serverAddr));
@@ -637,7 +631,7 @@ namespace com::github::socket
         [[nodiscard]] auto read(void* buffer, size_t length) noexcept -> ssize_t
         {
             socklen_t fromlength = sizeof(m_clientAddr);
-#ifdef LINUX
+#ifdef __GNUC__
             return ::recvfrom(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &fromlength);
 #else
             return ::recvfrom(m_fd, reinterpret_cast<char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), &fromlength);
@@ -646,7 +640,7 @@ namespace com::github::socket
 
         auto send(const void* buffer, size_t length) noexcept -> ssize_t
         {
-#ifdef LINUX
+#ifdef __GNUC__
             return ::sendto(m_fd, buffer, length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), sizeof(m_clientAddr));
 #else
             return ::sendto(m_fd, reinterpret_cast<const char*>(buffer), length, 0, reinterpret_cast<sockaddr*>(&m_clientAddr), sizeof(m_clientAddr));
@@ -658,7 +652,7 @@ namespace com::github::socket
         void init() noexcept(false)
         {
             int opt = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
@@ -679,7 +673,7 @@ namespace com::github::socket
         auto operator=(SecureTcpClient&&) -> SecureTcpClient& = delete;
         SecureTcpClient(SecureTcpClient&) = delete;
 
-#ifdef LINUX
+#ifdef __GNUC__
         SecureTcpClient(const int filedescriptor, SSL_CTX* sslctx) noexcept(false)
 #else
         SecureTcpClient(SOCKET filedescriptor, SSL_CTX *sslctx) noexcept(false)
@@ -717,7 +711,7 @@ namespace com::github::socket
             initAddr(ipAddr, port, addr);
 
             auto ret = connect(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-#ifdef LINUX
+#ifdef __GNUC__
             if (ret < 0)
 #else
             if (ret == SOCKET_ERROR)
@@ -765,7 +759,7 @@ namespace com::github::socket
         void init() noexcept(false)
         {
             m_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-#ifdef LINUX
+#ifdef __GNUC__
             if (m_fd < 0)
 #else
             if (m_fd == INVALID_SOCKET)
@@ -775,7 +769,7 @@ namespace com::github::socket
             }
 
             int flag = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) != 0)
 #else
             if (setsockopt(IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&flag), sizeof(flag)) == SOCKET_ERROR)
@@ -861,7 +855,7 @@ namespace com::github::socket
         [[nodiscard]] auto accept(std::string& ipAddr, uint16_t& port) noexcept(false) -> SecureTcpClient
         {
             auto fileD = Socket::accept(ipAddr, port);
-#ifdef LINUX
+#ifdef __GNUC__
             if (fileD < 0)
 #else
             if (fileD == INVALID_SOCKET)
@@ -885,7 +879,7 @@ namespace com::github::socket
             sockaddr_in client = {};
             socklen_t clientLen = sizeof(client);
             auto fileD = Socket::accept(reinterpret_cast<sockaddr*>(&client), &clientLen);
-#ifdef LINUX
+#ifdef __GNUC__
             if (fileD < 0)
 #else
             if (fileD == INVALID_SOCKET)
@@ -906,7 +900,7 @@ namespace com::github::socket
             Socket::init();
 
             m_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-#ifdef LINUX
+#ifdef __GNUC__
             if (m_fd < 0)
 #else
             if (m_fd == INVALID_SOCKET)
@@ -916,7 +910,7 @@ namespace com::github::socket
             }
             
             int opt = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
@@ -1034,7 +1028,7 @@ namespace com::github::socket
         void init(const std::string& keyFile, const std::string& certFile) noexcept(false)
         {
             m_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
-#ifdef LINUX
+#ifdef __GNUC__
             if (m_fd < 0)
 #else
             if (m_fd == INVALID_SOCKET)
@@ -1185,7 +1179,7 @@ namespace com::github::socket
             SSL_CTX_set_cookie_verify_cb(m_sslctx, &Socket::verifyCookie);
 
             m_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
-#ifdef LINUX
+#ifdef __GNUC__
             if (m_fd < 0)
 #else
             if (m_fd == INVALID_SOCKET)
@@ -1195,7 +1189,7 @@ namespace com::github::socket
             }
 
             int opt = 1;
-#ifdef LINUX
+#ifdef __GNUC__
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) != 0)
 #else
             if (setsockopt(SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR)
