@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   asan:
     runs-on: ${{matrix.os}}
-    name: CodeQL
+    name: AddressSanitization
     strategy:
       matrix:
         os: ["ubuntu-latest"]
@@ -120,7 +120,9 @@ jobs:
 
     - name: windows_uses
       if: ${{ matrix.os == 'windows-latest' }}
-      uses: MarkusJx/googletest-installer@v1.1.1
+      uses: Bacondish2023/setup-googletest@v1
+      with:
+        build-type: ${{ matrix.BUILDTYPE }}
 
     - name: build_windows
       env: 
