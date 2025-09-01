@@ -1,0 +1,59 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        cppstd: ["20", "23"]
+        BUILDTYPE: ["Debug", "Release"]
+        cc: ["clang", "gcc"]
+        cxx: ["clang++", "g++"]
+        include:
+          - os: "ubuntu-latest"
+            cppstd: "20"
+          - os: "ubuntu-latest"
+            cppstd: "23"
+          - os: "ubuntu-latest"
+            cppstd: "20"
+            deps: "lcov"
+            coverage: "-DCOVERAGE=ON"
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: install_ubuntu_deps
+      env: 
+        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get install libgtest-dev openssl clang-tidy && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a |
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
+
+    - name: install_windows_deps
+      if: ${{ matrix.os == 'windows-latest' }}
+      env: 
+        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
+      run: |
+        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
+        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt |
+        choco install openssl
+
+    - name: windows_uses
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: MarkusJx/googletest-installer@v1.1.1
+
+    - name: build
+      run: |
+        cmake . -B ${{github.workspace}}/build -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }}
+        cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
+
+    - name: test
+      run: ctest -VV --test-dir ${{github.workspace}}/build -C ${{ matrix.BUILDTYPE}}

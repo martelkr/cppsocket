@@ -1,0 +1,9 @@
+prefix="@CMAKE_INSTALL_PREFIX@"
+includedir="@CMAKE_INSTALL_FULL_INCLUDEDIR@"
+
+Name: @PROJECT_NAME@
+Description: C++20 SSL and non-SSL sockets
+URL: https://github.com/martelkr/cppsocket
+Version: @PROJECT_VERSION@
+Requires: None
+Cflags: -I"${includedir}" @pkg_config_defines@

@@ -22,6 +22,11 @@ using size_t = SIZE_T;
 
 #endif
 
+/*  Version macros for compile-time API version detection                     */
+#define CPPSOCKET_VERSION_MAJOR 0
+#define CPPSOCKET_VERSION_MINOR 0
+#define CPPSOCKET_VERSION_PATCH 9
+
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
