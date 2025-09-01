@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "windows-latest"]
-        BUILDTYPE: ["Debug", "Release"]
+        BUILDTYPE: ["Debug", "Release", "ASAN"]
         include:
           - os: "ubuntu-latest"
             cppstd: "20"
@@ -77,6 +77,12 @@ jobs:
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
+
+    - name: build_ubuntu_asan
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=ASAN
+        cmake --build ${{github.workspace}}/build --config ASAN
 
     - name: build_windows
       if: ${{ matrix.os == 'windows-latest' }}
