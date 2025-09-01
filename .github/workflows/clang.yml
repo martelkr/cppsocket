@@ -31,7 +31,7 @@ jobs:
         ctest -VV --test-dir ${{github.workspace}}/build -C Debug
 
     - name: Generate a code coverage report
-      uses: threeal/gcovr-action@latest
+      uses: threeal/gcovr-action@v1.1.0
       with:
         gcov-executable: llvm-cov gcov
 
@@ -59,7 +59,7 @@ jobs:
         ctest -VV --test-dir ${{github.workspace}}/build -C Release
 
     - name: Generate a code coverage report
-      uses: threeal/gcovr-action@latest
+      uses: threeal/gcovr-action@v1.1.0
       with:
         gcov-executable: llvm-cov gcov
   

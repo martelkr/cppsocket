@@ -3,3 +3,5 @@ Checks: >
 
 CheckOptions:  
   - {key: readability-identifier-naming.TypeTemplateParameterIgnoredRegexp, value: expr-type}
+
+HeaderFilterRegex: 'inc/.*'

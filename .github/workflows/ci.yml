@@ -1,13 +1,71 @@
-name: CI
-
 on: [push, pull_request]
 
 jobs:
-  tests:
+  asan:
+    runs-on: ${{matrix.os}}
+    name: AddressSanitization
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install gtest
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Write files
+      env: 
+        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
+      run: |
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
+
+    - name: build_asan
+      run: |
+        cmake . -B ${{github.workspace}}/asanbuild -DCMAKE_BUILD_TYPE=ASAN
+        cmake --build ${{github.workspace}}/asanbuild --config ASAN
+
+  codeql:
+    runs-on: ubuntu-latest
+    name: CodeQL
+    strategy:
+      matrix:
+        language: ["cpp"]
+      fail-fast: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Install gtest manually
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Build
+      run: |
+         echo "Run, Build Application using script"
+         cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+         cmake --build ${{github.workspace}}/build --config Release
+          
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+
+  pipeline:
+    name: Pipeline
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        os: ["ubuntu-latest", "windows-latest"]
         BUILDTYPE: ["Debug", "Release"]
         include:
           - os: "ubuntu-latest"
@@ -29,6 +87,14 @@ jobs:
           - os: "ubuntu-latest"
             cppstd: "20"
             deps: "lcov"
+            cc: gcc
+            cxx: g++
+            coverage: "-DCOVERAGE=ON"
+          - os: "ubuntu-latest"
+            cppstd: "20"
+            deps: "lcov"
+            cc: clang
+            cxx: clang++
             coverage: "-DCOVERAGE=ON"
           - os: "windows-latest"
             cppstd: "20"
@@ -38,36 +104,34 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: install_ubuntu_deps
+    - name: build_ubuntu
       env: 
         FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
         FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
-        sudo apt-get install libgtest-dev openssl clang-tidy && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a |
-        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        sudo apt-get install libgtest-dev openssl clang-tidy && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
-
-    - name: install_windows_deps
-      if: ${{ matrix.os == 'windows-latest' }}
-      env: 
-        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
-        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
-      run: |
-        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
-        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt |
-        choco install openssl
-
-    - name: windows_uses
-      if: ${{ matrix.os == 'windows-latest' }}
-      uses: MarkusJx/googletest-installer@v1.1.1
-
-    - name: build
-      run: |
         cmake . -B ${{github.workspace}}/build -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
+        ctest -VV --test-dir ${{github.workspace}}/build -C ${{ matrix.BUILDTYPE}}
 
-    - name: test
-      run: ctest -VV --test-dir ${{github.workspace}}/build -C ${{ matrix.BUILDTYPE}}
+    - name: windows_uses
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: MarkusJx/googletest-installer@v1.1
+
+    - name: build_windows
+      env: 
+        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
+      if: ${{ matrix.os == 'windows-latest' && matrix.BUILDTYPE == 'Release' }} # windows debug isn't working with gtest
+      run: |
+        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key
+        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
+        choco install openssl
+        cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }}
+        cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
+        ctest -VV --test-dir ${{github.workspace}}/build -C ${{ matrix.BUILDTYPE}}

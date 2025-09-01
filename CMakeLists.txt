@@ -57,7 +57,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
               DESTINATION ${CPPSOCKET_CMAKECONFIG_INSTALL_DIR})
 
-option(BUILD_TESTS "Whether or not to build the tests" OFF)
+option(BUILD_TESTS "Whether or not to build the tests" ON)
 
 if (BUILD_TESTS)
     enable_testing()
