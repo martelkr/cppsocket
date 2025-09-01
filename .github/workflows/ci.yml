@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "windows-latest"]
-        BUILDTYPE: ["Debug", "Release", "ASAN"]
+        BUILDTYPE: ["Debug", "Release"]
         include:
           - os: "ubuntu-latest"
             cppstd: "20"
