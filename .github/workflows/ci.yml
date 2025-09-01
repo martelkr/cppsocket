@@ -127,7 +127,7 @@ jobs:
       env: 
         FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
         FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
-      if: ${{ matrix.os == 'windows-latest' }}
+      if: ${{ matrix.os == 'windows-latest' }} && ${{ matrix.BUILDTYPE == 'Release' }} # windows debug isn't working with gtest
       run: |
         echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key
         echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
