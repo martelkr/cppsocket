@@ -29,6 +29,14 @@ jobs:
           - os: "ubuntu-latest"
             cppstd: "20"
             deps: "lcov"
+            cc: gcc
+            cxx: g++
+            coverage: "-DCOVERAGE=ON"
+          - os: "ubuntu-latest"
+            cppstd: "20"
+            deps: "lcov"
+            cc: clang
+            cxx: clang++
             coverage: "-DCOVERAGE=ON"
           - os: "windows-latest"
             cppstd: "20"
