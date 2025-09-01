@@ -1,9 +1,67 @@
-name: CI
-
 on: [push, pull_request]
 
 jobs:
+  asan:
+    runs-on: ${{matrix.os}}
+    name: CodeQL
+    strategy:
+      matrix:
+        os: ["ubuntu-latest"]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install gtest
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Write files
+      env: 
+        FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
+      run: |
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
+
+    - name: build_asan
+      run: |
+        cmake . -B ${{github.workspace}}/asanbuild -DCMAKE_BUILD_TYPE=ASAN
+        cmake --build ${{github.workspace}}/asanbuild --config ASAN
+
+  codeql:
+    runs-on: ubuntu-latest
+    name: CodeQL
+    strategy:
+      matrix:
+        language: ["cpp"]
+      fail-fast: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Install gtest manually
+      run: sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+    - name: Build
+      run: |
+         echo "Run, Build Application using script"
+         cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+         cmake --build ${{github.workspace}}/build --config Release
+          
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+
   pipeline:
+    name: Pipeline
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
@@ -59,12 +117,6 @@ jobs:
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
-
-    - name: build_asan
-      if: ${{ matrix.BUILDTYPE == 'Debug' }} && ${{ matrix.os == 'ubuntu-latest' }}
-      run: |
-        cmake . -B ${{github.workspace}}/asanbuild -DCMAKE_BUILD_TYPE=ASAN
-        cmake --build ${{github.workspace}}/asanbuild --config ASAN
 
     - name: windows_uses
       if: ${{ matrix.os == 'windows-latest' }}
