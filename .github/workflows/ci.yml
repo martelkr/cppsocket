@@ -3,7 +3,7 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  tests:
+  pipeline:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
@@ -46,47 +46,39 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: install_ubuntu_deps
+    - name: build_ubuntu
       env: 
         FILE_ONE: ${{ secrets.KRM_MAIN_FILE }}
         FILE_TWO: ${{ secrets.KRM_SCND_FILE }}
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
-        sudo apt-get install libgtest-dev openssl clang-tidy && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a |
-        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem |
+        sudo apt-get install libgtest-dev openssl clang-tidy && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/*.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+        echo "${FILE_ONE}" | base64 --decode > ${HOME}/key.pem
         echo "${FILE_TWO}" | base64 --decode > ${HOME}/scert.crt
-
-    - name: install_windows_deps
-      if: ${{ matrix.os == 'windows-latest' }}
-      env: 
-        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
-        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
-      run: |
-        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key |
-        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt |
-        choco install openssl
-
-    - name: windows_uses
-      if: ${{ matrix.os == 'windows-latest' }}
-      uses: MarkusJx/googletest-installer@v1.1.1
-
-    - name: build_ubuntu
-      if: ${{ matrix.os == 'ubuntu-latest' }}
-      run: |
         cmake . -B ${{github.workspace}}/build -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
 
-    - name: build_ubuntu_asan
-      if: ${{ matrix.os == 'ubuntu-latest' }}
+    - name: build_asan
+      if: ${{ matrix.BUILDTYPE == 'Debug' }}
       run: |
         cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=ASAN
         cmake --build ${{github.workspace}}/build --config ASAN
 
+    - name: windows_uses
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: MarkusJx/googletest-installer@v1.1.1
+
     - name: build_windows
+      env: 
+        FILE_ONE: ${{ secrets.KRM_WIN_MAIN_FILE }}
+        FILE_TWO: ${{ secrets.KRM_WIN_SCND_FILE }}
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
+        echo "${FILE_ONE}" | openssl base64 -d > ${HOME}/privatekey.key
+        echo "${FILE_TWO}" | openssl base64 -d > ${HOME}/certificate.crt
+        choco install openssl
         cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
 
