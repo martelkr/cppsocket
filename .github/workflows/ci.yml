@@ -8,19 +8,32 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-        cppstd: ["20", "23"]
         BUILDTYPE: ["Debug", "Release"]
-        cc: ["clang", "gcc"]
-        cxx: ["clang++", "g++"]
         include:
           - os: "ubuntu-latest"
             cppstd: "20"
+            cc: clang
+            cxx: clang++
           - os: "ubuntu-latest"
             cppstd: "23"
+            cc: clang
+            cxx: clang++
+          - os: "ubuntu-latest"
+            cppstd: "20"
+            cc: gcc
+            cxx: g++
+          - os: "ubuntu-latest"
+            cppstd: "23"
+            cc: gcc
+            cxx: g++
           - os: "ubuntu-latest"
             cppstd: "20"
             deps: "lcov"
             coverage: "-DCOVERAGE=ON"
+          - os: "windows-latest"
+            cppstd: "20"
+            cc: "msbuild"
+            cxx: "msbuild"
 
     steps:
     - uses: actions/checkout@v3
@@ -52,7 +65,8 @@ jobs:
     - name: build
       run: |
         cmake . -B ${{github.workspace}}/build -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }}
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
 
     - name: test

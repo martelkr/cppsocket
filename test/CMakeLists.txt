@@ -1,3 +1,4 @@
+message(STATUS "Building tests")
 if(CMAKE_COMPILER_IS_GNUCXX)
     if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
         message(STATUS "Code Coverage")

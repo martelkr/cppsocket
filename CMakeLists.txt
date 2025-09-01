@@ -18,12 +18,20 @@ project(cppsocket VERSION ${DETECTED_CPPSOCKET_VERSION} LANGUAGES CXX)
 
 include_directories(inc)
 
+add_library(cppsocket INTERFACE)
+target_include_directories(cppsocket INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                                                $<INSTALL_INTERFACE:include>)
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+install(TARGETS cppsocket EXPORT ${PROJECT_NAME}-targets)
 
 install(FILES inc/cppsocket.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 set(CPPSOCKET_CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}" CACHE STRING "install path for cppsocketConfig.cmake")
+
+message(STATUS "CPPSOCKET CMAKE Install directory =${CPPSOCKET_CMAKE_CONFIG_INSTALL_DIR}")
 
 export(EXPORT ${PROJECT_NAME}-targets
      FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
@@ -49,7 +57,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
               DESTINATION ${CPPSOCKET_CMAKECONFIG_INSTALL_DIR})
 
-option(BUILD_TESTS "Whether or not to build the tests" ON)
+option(BUILD_TESTS "Whether or not to build the tests" OFF)
 
 if (BUILD_TESTS)
     enable_testing()
