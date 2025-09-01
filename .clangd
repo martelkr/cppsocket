@@ -1,0 +1,6 @@
+Diagnostics:
+  ClangTidy:
+    Remove: "*"
+---
+If:
+  PathMatch: inc/.*

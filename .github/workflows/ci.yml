@@ -81,8 +81,7 @@ jobs:
     - name: build_windows
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
-            -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
+        cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
 
     - name: test
