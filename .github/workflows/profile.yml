@@ -37,7 +37,7 @@ jobs:
       run: ctest -VV -C Coverage
 
     - name: Generate Test Report
-      uses: threeal/gcovr-action@latest
+      uses: threeal/gcovr-action@v1.1.0
       with:
         coveralls-send: true
         github-token: ${{ secrets.GITHUB_TOKEN }}

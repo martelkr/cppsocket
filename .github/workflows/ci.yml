@@ -70,10 +70,18 @@ jobs:
       if: ${{ matrix.os == 'windows-latest' }}
       uses: MarkusJx/googletest-installer@v1.1.1
 
-    - name: build
+    - name: build_ubuntu
+      if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         cmake . -B ${{github.workspace}}/build -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
+        cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
+
+    - name: build_windows
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        cmake . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.BUILDTYPE }} \
             -DCMAKE_CXX_STANDARD=${{ matrix.cppstd }}
         cmake --build ${{github.workspace}}/build --config ${{ matrix.BUILDTYPE }}
 
